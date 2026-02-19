@@ -3,108 +3,216 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pittsburgh Walks Leaderboard</title>
+  <title>Pittsburgh Walks — Sidewalk Survey Leaderboard</title>
 
-  <!--
-    FONTS: We load two Google Fonts here.
-    - "Bebas Neue": Bold display font for the title
-    - "DM Sans": Clean, readable font for everything else
-    To change fonts, browse https://fonts.google.com and swap these URLs.
-  -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
 
-  <!--
-    STYLES: Controls how the page looks.
-
-    COLOR SCHEME (Pittsburgh's black & gold):
-    - --bg: Dark charcoal background
-    - --gold: Primary accent color (Pittsburgh gold)
-    - --gold-dim: Subtle gold for borders/details
-    - --text: Light text for readability
-    - --text-dim: Muted text for secondary info
-
-    To customize, edit the color values in :root below.
-  -->
   <style>
     :root {
-      --bg: #1a1a1a;
-      --bg-card: #242424;
-      --gold: #ffb81c;
-      --gold-dim: rgba(255, 184, 28, 0.15);
-      --text: #f5f5f5;
-      --text-dim: #888;
-      --bronze: #cd7f32;
-      --silver: #c0c0c0;
+      --bg-deep: #070010;
+      --bg-mid: #150030;
+      --panel: rgba(5, 0, 20, 0.82);
+      --panel-border: rgba(0, 255, 255, 0.12);
+      --cyan: #00ffff;
+      --magenta: #ff00ff;
+      --hot-pink: #ff0066;
+      --yellow: #ffdd00;
+      --orange: #ff8800;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
-      font-family: 'DM Sans', sans-serif;
-      background: var(--bg);
-      color: var(--text);
+      font-family: 'Press Start 2P', monospace;
+      color: #e0e0e0;
       min-height: 100vh;
-      padding: 2rem 1rem 4rem;
-      /* Subtle noise texture for depth */
-      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
-      background-blend-mode: overlay;
-      background-size: 150px;
+      overflow-x: hidden;
+      background: var(--bg-deep);
     }
 
+    /* ═══ SYNTHWAVE BACKGROUND SCENE ═══ */
+    .synthwave-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      overflow: hidden;
+      background: linear-gradient(
+        to bottom,
+        #050008 0%,
+        #0e0020 20%,
+        #24004a 40%,
+        #6b0044 53%,
+        #cc2200 60%,
+        #ffaa00 63%,
+        #cc2200 66%,
+        #200035 72%,
+        #0a0018 100%
+      );
+    }
+
+    /* Sun */
+    .sun {
+      position: absolute;
+      left: 50%;
+      top: 56%;
+      transform: translate(-50%, -50%);
+      width: min(300px, 50vw);
+      height: min(300px, 50vw);
+      border-radius: 50%;
+      overflow: hidden;
+      background: linear-gradient(
+        to bottom,
+        #ffee44 0%,
+        #ffaa00 35%,
+        #ff4400 65%,
+        #cc0044 100%
+      );
+      box-shadow:
+        0 0 80px rgba(255, 150, 0, 0.4),
+        0 0 160px rgba(255, 80, 0, 0.15);
+    }
+
+    /* Sun horizontal stripes (bottom half) */
+    .sun::after {
+      content: '';
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 45%;
+      bottom: 0;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px, transparent 7px,
+        #200035 7px, #200035 12px
+      );
+    }
+
+    /* Perspective grid floor */
+    .grid-floor {
+      position: absolute;
+      left: -80%;
+      width: 260%;
+      top: 63%;
+      height: 80%;
+      background-image:
+        linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+      background-size: 70px 35px;
+      transform: perspective(180px) rotateX(48deg);
+      transform-origin: 50% 0%;
+      animation: gridScroll 12s linear infinite;
+    }
+
+    @keyframes gridScroll {
+      from { background-position: 0 0; }
+      to { background-position: 0 35px; }
+    }
+
+    /* Ambient glow at the horizon */
+    .horizon-glow {
+      position: absolute;
+      left: 0;
+      right: 0;
+      top: 50%;
+      height: 30%;
+      background: radial-gradient(
+        ellipse 60% 40% at 50% 50%,
+        rgba(255, 100, 0, 0.12) 0%,
+        transparent 100%
+      );
+    }
+
+    /* CRT scanlines */
+    .scanlines {
+      position: fixed;
+      inset: 0;
+      z-index: 9998;
+      pointer-events: none;
+      background: repeating-linear-gradient(
+        to bottom,
+        transparent 0px,
+        transparent 3px,
+        rgba(0, 0, 0, 0.07) 3px,
+        rgba(0, 0, 0, 0.07) 6px
+      );
+    }
+
+    /* ═══ CONTENT ═══ */
     .container {
+      position: relative;
+      z-index: 10;
       max-width: 600px;
       margin: 0 auto;
+      padding: 3.5rem 1.25rem 5rem;
     }
 
-    /* HEADER: Title and walking icon */
+    /* ═══ HEADER ═══ */
     header {
       text-align: center;
-      margin-bottom: 2rem;
+      margin-bottom: 2.5rem;
       animation: fadeDown 0.6s ease-out;
     }
 
-    .icon {
-      font-size: 3rem;
-      margin-bottom: 0.5rem;
-      display: block;
-    }
-
     h1 {
-      font-family: 'Bebas Neue', sans-serif;
-      font-size: clamp(2.5rem, 8vw, 4rem);
-      letter-spacing: 0.05em;
-      color: var(--gold);
-      text-shadow: 0 2px 20px rgba(255, 184, 28, 0.3);
-      line-height: 1;
+      font-size: clamp(1rem, 4.5vw, 1.7rem);
+      color: var(--magenta);
+      line-height: 1.6;
+      text-shadow:
+        0 0 12px rgba(255, 0, 255, 0.6),
+        0 0 40px rgba(255, 0, 255, 0.25);
+      animation: neonPulse 4s ease-in-out infinite;
     }
 
     .subtitle {
-      color: var(--text-dim);
-      font-size: 0.95rem;
-      margin-top: 0.5rem;
+      font-size: clamp(0.45rem, 1.8vw, 0.55rem);
+      color: var(--cyan);
+      margin-top: 0.75rem;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
     }
 
-    #total {
-      background: var(--gold-dim);
-      border: 1px solid rgba(255, 184, 28, 0.3);
-      border-radius: 2rem;
-      padding: 0.6rem 1.5rem;
-      display: inline-block;
-      margin-top: 1rem;
-      font-weight: 500;
-      font-size: 0.9rem;
-      animation: fadeUp 0.6s ease-out 0.2s both;
+    /* ═══ STATS ═══ */
+    .stats {
+      display: flex;
+      justify-content: center;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+      flex-wrap: wrap;
+      animation: fadeUp 0.5s ease-out 0.2s both;
     }
 
-    /* LEADERBOARD TABLE */
+    .stat {
+      text-align: center;
+    }
+
+    .stat-number {
+      display: block;
+      font-size: clamp(0.85rem, 3vw, 1.15rem);
+      color: var(--yellow);
+      text-shadow: 0 0 10px rgba(255, 220, 0, 0.5);
+      line-height: 1.4;
+    }
+
+    .stat-label {
+      display: block;
+      font-size: 0.45rem;
+      color: var(--cyan);
+      text-shadow: 0 0 6px rgba(0, 255, 255, 0.3);
+      margin-top: 0.3rem;
+      letter-spacing: 0.08em;
+    }
+
+    /* ═══ LEADERBOARD ═══ */
     .leaderboard {
-      background: var(--bg-card);
-      border-radius: 1rem;
-      overflow: hidden;
-      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
-      animation: fadeUp 0.6s ease-out 0.3s both;
+      background: var(--panel);
+      border: 2px solid var(--panel-border);
+      padding: 1rem 0;
+      animation: fadeUp 0.5s ease-out 0.35s both;
+      box-shadow:
+        0 0 40px rgba(0, 0, 0, 0.5),
+        inset 0 0 30px rgba(0, 255, 255, 0.02);
     }
 
     table {
@@ -112,77 +220,91 @@
       border-collapse: collapse;
     }
 
-    thead {
-      background: rgba(255, 255, 255, 0.05);
-      text-transform: uppercase;
-      font-size: 0.75rem;
-      letter-spacing: 0.1em;
-      color: var(--text-dim);
-    }
-
-    th, td {
-      padding: 1rem;
+    thead th {
+      font-size: 0.45rem;
+      color: rgba(0, 255, 255, 0.5);
+      padding: 0.5rem 1rem 0.75rem;
       text-align: left;
+      border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+      letter-spacing: 0.08em;
     }
 
-    th:first-child, td:first-child { text-align: center; width: 4rem; }
-    th:last-child, td:last-child { text-align: right; width: 5rem; }
+    thead th:first-child {
+      text-align: center;
+      width: 3.5rem;
+    }
+
+    thead th:last-child {
+      text-align: right;
+      width: 5.5rem;
+    }
 
     tbody tr {
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      transition: background 0.2s ease;
+      transition: background 0.15s ease;
+      animation: fadeIn 0.3s ease-out both;
     }
 
     tbody tr:hover {
-      background: rgba(255, 184, 28, 0.05);
+      background: rgba(0, 255, 255, 0.04);
     }
 
-    /* TOP 3 MEDAL STYLING */
-    .rank { font-weight: 700; font-size: 1.1rem; }
-    .rank-1 .rank { color: var(--gold); }
-    .rank-2 .rank { color: var(--silver); }
-    .rank-3 .rank { color: var(--bronze); }
-
-    .rank-1 { background: linear-gradient(90deg, rgba(255, 184, 28, 0.15) 0%, transparent 100%); }
-    .rank-2 { background: linear-gradient(90deg, rgba(192, 192, 192, 0.1) 0%, transparent 100%); }
-    .rank-3 { background: linear-gradient(90deg, rgba(205, 127, 50, 0.1) 0%, transparent 100%); }
-
-    .medal {
-      display: inline-block;
-      width: 1.8rem;
-      height: 1.8rem;
-      line-height: 1.8rem;
-      border-radius: 50%;
-      font-size: 0.85rem;
+    td {
+      padding: 0.5rem 1rem;
+      text-align: left;
+      font-size: 0.5rem;
+      vertical-align: middle;
     }
 
-    .rank-1 .medal { background: var(--gold); color: #1a1a1a; }
-    .rank-2 .medal { background: var(--silver); color: #1a1a1a; }
-    .rank-3 .medal { background: var(--bronze); color: #1a1a1a; }
-
-    .username {
-      font-weight: 500;
+    td:first-child {
+      text-align: center;
+      width: 3.5rem;
+      font-size: 0.45rem;
     }
 
-    .count {
-      font-weight: 700;
-      color: var(--gold);
-      font-size: 1.1rem;
+    td:last-child {
+      text-align: right;
+      width: 5.5rem;
     }
 
-    /* Row stagger animation */
-    tbody tr {
-      animation: fadeIn 0.4s ease-out both;
+    /* Top 3 get extra glow */
+    tbody tr.top-rank td {
+      font-size: 0.55rem;
+      padding-top: 0.65rem;
+      padding-bottom: 0.65rem;
     }
 
-    /* ANIMATIONS */
+    .top-rank-1 td { text-shadow: 0 0 12px currentColor, 0 0 30px currentColor; }
+    .top-rank-2 td { text-shadow: 0 0 10px currentColor, 0 0 22px currentColor; }
+    .top-rank-3 td { text-shadow: 0 0 8px currentColor, 0 0 18px currentColor; }
+
+    /* Regular rows get subtle glow */
+    tbody tr:not(.top-rank) td {
+      text-shadow: 0 0 6px currentColor;
+    }
+
+    /* Divider between top 3 and the rest */
+    .divider-row td {
+      padding: 0;
+      height: 1px;
+      border: none;
+      background: linear-gradient(
+        90deg,
+        transparent 5%,
+        rgba(0, 255, 255, 0.15) 30%,
+        rgba(255, 0, 255, 0.15) 70%,
+        transparent 95%
+      );
+    }
+    .divider-row:hover { background: none; }
+
+    /* ═══ ANIMATIONS ═══ */
     @keyframes fadeDown {
-      from { opacity: 0; transform: translateY(-20px); }
+      from { opacity: 0; transform: translateY(-16px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
     @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(20px); }
+      from { opacity: 0; transform: translateY(16px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
@@ -191,45 +313,73 @@
       to { opacity: 1; }
     }
 
-    /* FOOTER */
+    @keyframes neonPulse {
+      0%, 100% { text-shadow: 0 0 12px rgba(255,0,255,0.5), 0 0 40px rgba(255,0,255,0.2); }
+      50% { text-shadow: 0 0 18px rgba(255,0,255,0.8), 0 0 50px rgba(255,0,255,0.4), 0 0 80px rgba(255,0,255,0.15); }
+    }
+
+    /* ═══ FOOTER ═══ */
     footer {
       text-align: center;
       margin-top: 2rem;
-      color: var(--text-dim);
-      font-size: 0.8rem;
-      animation: fadeUp 0.6s ease-out 0.5s both;
+      font-size: 0.4rem;
+      color: rgba(0, 255, 255, 0.35);
+      line-height: 2;
+      animation: fadeUp 0.5s ease-out 0.6s both;
+      text-shadow: 0 0 6px rgba(0, 255, 255, 0.15);
     }
 
-    footer a {
-      color: var(--gold);
-      text-decoration: none;
-    }
-
-    footer a:hover {
-      text-decoration: underline;
+    /* ═══ RESPONSIVE ═══ */
+    @media (max-width: 520px) {
+      .container { padding: 2.5rem 0.75rem 4rem; }
+      .stats { gap: 1rem; }
+      .stat-number { font-size: 0.8rem; }
+      td { padding: 0.4rem 0.6rem; font-size: 0.42rem; }
+      td:first-child { width: 2.5rem; }
+      td:last-child { width: 4rem; }
+      thead th { padding: 0.4rem 0.6rem; font-size: 0.38rem; }
+      tbody tr.top-rank td { font-size: 0.48rem; }
     }
   </style>
 </head>
 <body>
-  <!--
-    PAGE CONTENT: The visible structure of the leaderboard.
-    The table body (#leaderboard) gets filled in automatically by the script below.
-  -->
+
+  <!-- Synthwave background (pure CSS, no images) -->
+  <div class="synthwave-bg" aria-hidden="true">
+    <div class="horizon-glow"></div>
+    <div class="sun"></div>
+    <div class="grid-floor"></div>
+  </div>
+  <div class="scanlines" aria-hidden="true"></div>
+
   <div class="container">
     <header>
-      <span class="icon">🚶</span>
-      <h1>Pittsburgh Walks</h1>
-      <p class="subtitle">Sidewalk Survey Leaderboard</p>
-      <p id="total"></p>
+      <h1>PITTSBURGH<br>WALKS</h1>
+      <p class="subtitle">SIDEWALK SURVEY LEADERBOARD</p>
     </header>
 
-    <div class="leaderboard">
+    <div class="stats">
+      <div class="stat">
+        <span class="stat-number" id="stat-surveys">&mdash;</span>
+        <span class="stat-label">SURVEYS</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" id="stat-contributors">&mdash;</span>
+        <span class="stat-label">PLAYERS</span>
+      </div>
+      <div class="stat">
+        <span class="stat-number" id="stat-neighborhoods">&mdash;</span>
+        <span class="stat-label">ZONES</span>
+      </div>
+    </div>
+
+    <div class="leaderboard" id="leaderboard-wrapper">
       <table>
         <thead>
           <tr>
-            <th>Rank</th>
-            <th>Surveyor</th>
-            <th>Surveys</th>
+            <th>RANK</th>
+            <th>NAME</th>
+            <th>SCORE</th>
           </tr>
         </thead>
         <tbody id="leaderboard-body"></tbody>
@@ -237,82 +387,110 @@
     </div>
 
     <footer>
-      Helping make Pittsburgh's sidewalks safer for everyone.
+      HELPING MAKE PITTSBURGH'S<br>SIDEWALKS SAFER FOR EVERYONE
     </footer>
   </div>
 
-  <!--
-    SCRIPT: Loads the CSV file and builds the leaderboard.
-
-    HOW IT WORKS:
-    1. Fetches data/raw-survey.csv from the same folder as this HTML file
-    2. Counts how many surveys each Username submitted
-    3. Sorts users by count (highest first) and displays the results
-
-    TO UPDATE THE LEADERBOARD: Just replace raw-survey.csv with new data.
-    The page will reflect the changes automatically when refreshed.
-  -->
   <script>
-    // Load the CSV file
-    fetch('data/raw-survey.csv')
-      .then(r => r.text())
-      .then(csv => {
-        // Split CSV into rows and find the "Username" column
-        const lines = csv.split('\n');
-        const headers = parseCSVLine(lines[0]);
-        const usernameIdx = headers.indexOf('Username');
+    var NEON_COLORS = [
+      '#ff0055',
+      '#ff7700',
+      '#ffdd00',
+      '#00ff66',
+      '#00ffcc',
+      '#00aaff',
+      '#8855ff',
+      '#ff00aa'
+    ];
 
-        // Count surveys per user
-        const counts = {};
-        let total = 0;
-        for (let i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;  // Skip empty lines
-          const row = parseCSVLine(lines[i]);
-          const user = row[usernameIdx]?.trim();
+    fetch('data/processed-survey.csv')
+      .then(function(r) { return r.text(); })
+      .then(function(csv) {
+        var lines = csv.split('\n');
+        var headers = parseCSVLine(lines[0]);
+        var usernameIdx = headers.indexOf('Username');
+        var neighborhoodIdx = headers.indexOf('Neighborhood');
+
+        var counts = {};
+        var neighborhoods = new Set();
+        var total = 0;
+
+        for (var i = 1; i < lines.length; i++) {
+          if (!lines[i].trim()) continue;
+          var row = parseCSVLine(lines[i]);
+          var user = (row[usernameIdx] || '').trim();
+          var hood = (row[neighborhoodIdx] || '').trim();
+
           if (user) {
             counts[user] = (counts[user] || 0) + 1;
             total++;
           }
+          if (hood) neighborhoods.add(hood);
         }
 
-        // Sort by count (descending) and display
-        const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-        document.getElementById('total').textContent = `${total.toLocaleString()} surveys · ${sorted.length} contributors`;
+        var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
 
-        // Build table rows with rank styling and staggered animation
-        document.getElementById('leaderboard-body').innerHTML = sorted
-          .map(([user, count], i) => {
-            const rankClass = i < 3 ? `rank-${i + 1}` : '';
-            const rankDisplay = i < 3
-              ? `<span class="medal">${i + 1}</span>`
-              : i + 1;
-            const delay = Math.min(i * 0.05, 1);  // Stagger animation, max 1s delay
-            return `<tr class="${rankClass}" style="animation-delay: ${delay}s">
-              <td class="rank">${rankDisplay}</td>
-              <td class="username">${escapeHtml(user)}</td>
-              <td class="count">${count}</td>
-            </tr>`;
-          })
-          .join('');
+        // Animate stat counters
+        animateCounter(document.getElementById('stat-surveys'), total);
+        animateCounter(document.getElementById('stat-contributors'), sorted.length);
+        animateCounter(document.getElementById('stat-neighborhoods'), neighborhoods.size);
+
+        // Build all rows
+        var html = '';
+
+        sorted.forEach(function(entry, idx) {
+          var user = entry[0];
+          var count = entry[1];
+          var rank = idx + 1;
+          var color = NEON_COLORS[idx % NEON_COLORS.length];
+          var delay = Math.min(0.4 + idx * 0.04, 2.5);
+
+          var classes = '';
+          if (idx < 3) classes = 'top-rank top-rank-' + (idx + 1);
+
+          // Insert a divider after the top 3
+          if (idx === 3) {
+            html += '<tr class="divider-row" aria-hidden="true"><td colspan="3"></td></tr>';
+          }
+
+          html += '<tr class="' + classes + '" style="color:' + color + '; animation-delay:' + delay + 's">'
+            + '<td>' + rank + '</td>'
+            + '<td>' + escapeHtml(user) + '</td>'
+            + '<td>' + count + '</td>'
+            + '</tr>';
+        });
+
+        document.getElementById('leaderboard-body').innerHTML = html;
       });
 
-    // Helper: Parses a single CSV line, handling commas inside quoted fields
+    function animateCounter(el, target) {
+      var duration = 1400;
+      var start = performance.now();
+      function step(now) {
+        var t = Math.min((now - start) / duration, 1);
+        var ease = 1 - Math.pow(1 - t, 3);
+        el.textContent = Math.round(ease * target).toLocaleString();
+        if (t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
     function parseCSVLine(line) {
-      const result = [];
-      let current = '';
-      let inQuotes = false;
-      for (const char of line) {
-        if (char === '"') inQuotes = !inQuotes;
-        else if (char === ',' && !inQuotes) { result.push(current); current = ''; }
-        else current += char;
+      var result = [];
+      var current = '';
+      var inQuotes = false;
+      for (var i = 0; i < line.length; i++) {
+        var ch = line[i];
+        if (ch === '"') inQuotes = !inQuotes;
+        else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+        else current += ch;
       }
       result.push(current);
       return result;
     }
 
-    // Helper: Prevents HTML injection from usernames (security best practice)
     function escapeHtml(text) {
-      const div = document.createElement('div');
+      var div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
     }
