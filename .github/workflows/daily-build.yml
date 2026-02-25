@@ -1,0 +1,14 @@
+name: Daily Netlify Build
+
+on:
+  schedule:
+    # Run at 6:00 AM ET (11:00 UTC) every day
+    - cron: "0 11 * * *"
+  workflow_dispatch: # Allow manual triggers from GitHub UI
+
+jobs:
+  trigger-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Netlify deploy
+        run: curl -X POST -d '{}' "${{ secrets.NETLIFY_BUILD_HOOK }}"
