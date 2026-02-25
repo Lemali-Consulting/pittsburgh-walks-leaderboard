@@ -315,10 +315,98 @@
       text-align: center;
       margin-top: 2rem;
       font-size: 0.4rem;
-      color: rgba(0, 255, 255, 0.35);
+      color: var(--cyan);
       line-height: 2;
       animation: fadeUp 0.5s ease-out 0.6s both;
-      text-shadow: 0 0 6px rgba(0, 255, 255, 0.15);
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+
+    /* ═══ ATTRIBUTION ═══ */
+    .attribution {
+      text-align: center;
+      margin-top: 1.5rem;
+      font-size: 0.38rem;
+      color: var(--cyan);
+      animation: fadeUp 0.5s ease-out 0.7s both;
+      text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+
+    .attribution-text {
+      margin-bottom: 0.6rem;
+      letter-spacing: 0.05em;
+    }
+
+    .attribution a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    .synth-logo {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: filter 0.2s ease;
+    }
+
+    .synth-logo:hover {
+      filter: brightness(1.4);
+    }
+
+    .synth-logo .bracket {
+      position: relative;
+      width: 16px;
+      height: 22px;
+      flex-shrink: 0;
+    }
+
+    .synth-logo .bracket .frame {
+      position: absolute;
+      inset: 0;
+      border-left: 2.5px solid var(--cyan);
+      border-top: 2.5px solid var(--cyan);
+      border-bottom: 2.5px solid var(--cyan);
+      border-right: none;
+      border-radius: 2px 0 0 2px;
+      box-shadow:
+        0 0 6px rgba(0, 255, 255, 0.5),
+        0 0 14px rgba(0, 255, 255, 0.2),
+        inset 0 0 4px rgba(0, 255, 255, 0.15);
+    }
+
+    .synth-logo .bracket .dot {
+      position: absolute;
+      width: 5px;
+      height: 5px;
+      background: var(--magenta);
+      border-radius: 50%;
+      top: 50%;
+      right: 3px;
+      transform: translateY(-50%);
+      filter: drop-shadow(0 0 4px rgba(255, 0, 255, 0.7)) drop-shadow(0 0 8px rgba(255, 0, 255, 0.3));
+    }
+
+    .synth-logo .tg {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .synth-logo .tg .name {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.48rem;
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.5), 0 0 20px rgba(0, 255, 255, 0.2);
+      line-height: 1.3;
+      letter-spacing: 0.04em;
+    }
+
+    .synth-logo .tg .sub {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.32rem;
+      color: rgba(0, 255, 255, 0.4);
+      text-shadow: 0 0 6px rgba(0, 255, 255, 0.2);
+      letter-spacing: 0.08em;
+      line-height: 1.4;
     }
 
     /* ═══ RESPONSIVE ═══ */
@@ -329,6 +417,8 @@
       td { padding: 0.5rem 0.6rem; font-size: 0.5rem; }
       thead th { padding: 0.5rem 0.6rem; font-size: 0.45rem; }
       tbody tr.top-rank td { font-size: 0.58rem; }
+      .synth-logo .tg .name { font-size: 0.42rem; }
+      .synth-logo .tg .sub { font-size: 0.28rem; }
     }
   </style>
 </head>
@@ -386,10 +476,6 @@
         <span class="stat-number" id="stat-contributors">&mdash;</span>
         <span class="stat-label">PLAYERS</span>
       </div>
-      <div class="stat">
-        <span class="stat-number" id="stat-neighborhoods">&mdash;</span>
-        <span class="stat-label">ZONES</span>
-      </div>
     </div>
 
     <div class="leaderboard" id="leaderboard-wrapper">
@@ -408,6 +494,22 @@
     <footer>
       HELPING MAKE PITTSBURGH'S<br>SIDEWALKS SAFER FOR EVERYONE
     </footer>
+
+    <div class="attribution">
+      <div class="attribution-text">CREATED BY MAX CHIS AT</div>
+      <a href="https://lemaliconsulting.com" target="_blank" rel="noopener">
+        <div class="synth-logo">
+          <div class="bracket">
+            <div class="frame"></div>
+            <div class="dot"></div>
+          </div>
+          <div class="tg">
+            <span class="name">Lemali</span>
+            <span class="sub">Consulting</span>
+          </div>
+        </div>
+      </a>
+    </div>
   </div>
 
   <script>
@@ -428,23 +530,19 @@
         var lines = csv.split('\n');
         var headers = parseCSVLine(lines[0]);
         var usernameIdx = headers.indexOf('Username');
-        var neighborhoodIdx = headers.indexOf('Neighborhood');
 
         var counts = {};
-        var neighborhoods = new Set();
         var total = 0;
 
         for (var i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           var row = parseCSVLine(lines[i]);
           var user = (row[usernameIdx] || '').trim();
-          var hood = (row[neighborhoodIdx] || '').trim();
 
           if (user) {
             counts[user] = (counts[user] || 0) + 1;
             total++;
           }
-          if (hood) neighborhoods.add(hood);
         }
 
         var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
@@ -452,12 +550,11 @@
         // Animate stat counters
         animateCounter(document.getElementById('stat-surveys'), total);
         animateCounter(document.getElementById('stat-contributors'), sorted.length);
-        animateCounter(document.getElementById('stat-neighborhoods'), neighborhoods.size);
 
         // Build all rows
         var html = '';
 
-        sorted.forEach(function(entry, idx) {
+        sorted.slice(0, 25).forEach(function(entry, idx) {
           var user = entry[0];
           var count = entry[1];
           var rank = idx + 1;
