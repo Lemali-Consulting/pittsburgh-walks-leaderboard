@@ -166,11 +166,23 @@
     }
 
     .subtitle {
-      font-size: clamp(0.45rem, 1.8vw, 0.55rem);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.75rem;
+      font-size: clamp(0.55rem, 2.2vw, 0.7rem);
       color: var(--cyan);
       margin-top: 0.75rem;
       letter-spacing: 0.05em;
       text-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+    }
+
+    .pixel-icon {
+      height: 2.2em;
+      width: auto;
+      fill: currentColor;
+      shape-rendering: crispEdges;
+      filter: drop-shadow(0 0 6px rgba(0, 255, 255, 0.5));
     }
 
     /* ═══ STATS ═══ */
@@ -218,25 +230,16 @@
     table {
       width: 100%;
       border-collapse: collapse;
+      table-layout: fixed;
     }
 
     thead th {
-      font-size: 0.45rem;
+      font-size: 0.55rem;
       color: rgba(0, 255, 255, 0.5);
-      padding: 0.5rem 1rem 0.75rem;
-      text-align: left;
+      padding: 0.6rem 1rem 0.85rem;
+      text-align: center;
       border-bottom: 1px solid rgba(0, 255, 255, 0.1);
       letter-spacing: 0.08em;
-    }
-
-    thead th:first-child {
-      text-align: center;
-      width: 3.5rem;
-    }
-
-    thead th:last-child {
-      text-align: right;
-      width: 5.5rem;
     }
 
     tbody tr {
@@ -249,28 +252,17 @@
     }
 
     td {
-      padding: 0.5rem 1rem;
-      text-align: left;
-      font-size: 0.5rem;
-      vertical-align: middle;
-    }
-
-    td:first-child {
+      padding: 0.65rem 1rem;
       text-align: center;
-      width: 3.5rem;
-      font-size: 0.45rem;
-    }
-
-    td:last-child {
-      text-align: right;
-      width: 5.5rem;
+      font-size: 0.6rem;
+      vertical-align: middle;
     }
 
     /* Top 3 get extra glow */
     tbody tr.top-rank td {
-      font-size: 0.55rem;
-      padding-top: 0.65rem;
-      padding-bottom: 0.65rem;
+      font-size: 0.7rem;
+      padding-top: 0.8rem;
+      padding-bottom: 0.8rem;
     }
 
     .top-rank-1 td { text-shadow: 0 0 12px currentColor, 0 0 30px currentColor; }
@@ -334,11 +326,9 @@
       .container { padding: 2.5rem 0.75rem 4rem; }
       .stats { gap: 1rem; }
       .stat-number { font-size: 0.8rem; }
-      td { padding: 0.4rem 0.6rem; font-size: 0.42rem; }
-      td:first-child { width: 2.5rem; }
-      td:last-child { width: 4rem; }
-      thead th { padding: 0.4rem 0.6rem; font-size: 0.38rem; }
-      tbody tr.top-rank td { font-size: 0.48rem; }
+      td { padding: 0.5rem 0.6rem; font-size: 0.5rem; }
+      thead th { padding: 0.5rem 0.6rem; font-size: 0.45rem; }
+      tbody tr.top-rank td { font-size: 0.58rem; }
     }
   </style>
 </head>
@@ -355,7 +345,36 @@
   <div class="container">
     <header>
       <h1>PITTSBURGH<br>WALKS</h1>
-      <p class="subtitle">SIDEWALK SURVEY LEADERBOARD</p>
+      <p class="subtitle">
+        <svg class="pixel-icon" viewBox="0 0 6 7" aria-hidden="true">
+          <rect x="2" y="0" width="2" height="2"/>
+          <rect x="1" y="2" width="4" height="1"/>
+          <rect x="0" y="3" width="1" height="1"/>
+          <rect x="2" y="3" width="2" height="2"/>
+          <rect x="5" y="3" width="1" height="1"/>
+          <rect x="1" y="5" width="1" height="1"/>
+          <rect x="4" y="5" width="1" height="1"/>
+          <rect x="0" y="6" width="1" height="1"/>
+          <rect x="5" y="6" width="1" height="1"/>
+        </svg>
+        SIDEWALK SURVEY LEADERBOARD
+        <svg class="pixel-icon" viewBox="6 15 8 10" aria-hidden="true">
+          <g fill="currentColor">
+            <rect x="8" y="15" width="2" height="2"/>
+            <rect x="8" y="15" width="1" height="5"/>
+            <rect x="8" y="18" width="4" height="1"/>
+            <rect x="9" y="20" width="1" height="2"/>
+            <rect x="10" y="21" width="1" height="3"/>
+            <rect x="10" y="21" width="2" height="1"/>
+            <rect x="11" y="22" width="1" height="1"/>
+            <rect x="12" y="22" width="1" height="2"/>
+            <rect x="13" y="23" width="1" height="1"/>
+            <rect x="6" y="20" width="4" height="1"/>
+            <rect x="6" y="20" width="1" height="4"/>
+            <rect x="6" y="24" width="5" height="1"/>
+          </g>
+        </svg>
+      </p>
     </header>
 
     <div class="stats">
