@@ -10,6 +10,7 @@ import csv
 import json
 import os
 import subprocess
+import urllib.parse
 import urllib.request
 
 API_URL = (
@@ -24,14 +25,15 @@ def fetch_all_features():
     offset = 0
 
     while True:
-        params = (
-            f"?where=1%3D1"
-            f"&outFields=name,email,neighborhood"
-            f"&resultOffset={offset}"
-            f"&resultRecordCount={BATCH_SIZE}"
-            f"&f=json"
-        )
-        url = API_URL + params
+        where = "CreationDate>=timestamp'2025-09-10 00:00:00'"
+        params = urllib.parse.urlencode({
+            "where": where,
+            "outFields": "name,email,neighborhood",
+            "resultOffset": offset,
+            "resultRecordCount": BATCH_SIZE,
+            "f": "json",
+        })
+        url = API_URL + "?" + params
         with urllib.request.urlopen(url) as resp:
             data = json.loads(resp.read().decode("utf-8"))
 
