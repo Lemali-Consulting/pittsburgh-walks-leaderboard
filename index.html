@@ -32,9 +32,35 @@
       background: var(--bg-deep);
     }
 
-    /* When embedded in an iframe, let content determine height */
+    /* When embedded in an iframe, tighten spacing */
     body.is-embedded {
       min-height: 0;
+    }
+
+    body.is-embedded .container {
+      padding: 1.5rem 1.25rem 1.5rem;
+    }
+
+    body.is-embedded header {
+      margin-bottom: 1.5rem;
+    }
+
+    body.is-embedded .stats {
+      margin-bottom: 1.25rem;
+    }
+
+    body.is-embedded footer {
+      margin-top: 1.25rem;
+    }
+
+    body.is-embedded .attribution {
+      margin-top: 1rem;
+    }
+
+    @media (max-width: 520px) {
+      body.is-embedded .container {
+        padding: 1rem 0.75rem 1rem;
+      }
     }
 
     /* ═══ SYNTHWAVE BACKGROUND SCENE ═══ */

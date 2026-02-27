@@ -15,6 +15,14 @@
   window.addEventListener('message', function(e) {
     if (e.data && e.data.type === 'leaderboard-resize') {
       iframe.style.height = e.data.height + 'px';
+
+      // Clear any fixed height/min-height on parent wrappers (e.g. Squarespace)
+      var parent = iframe.parentElement;
+      while (parent && parent !== document.body) {
+        parent.style.minHeight = '0';
+        parent.style.height = 'auto';
+        parent = parent.parentElement;
+      }
     }
   });
 })();
