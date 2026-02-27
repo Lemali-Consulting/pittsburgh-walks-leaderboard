@@ -32,15 +32,9 @@
       background: var(--bg-deep);
     }
 
-    /* When embedded in an iframe, fill the available space */
-    body.is-embedded .container {
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-    }
-
-    body.is-embedded footer {
-      margin-top: auto;
+    /* When embedded in an iframe, let content determine height */
+    body.is-embedded {
+      min-height: 0;
     }
 
     /* ═══ SYNTHWAVE BACKGROUND SCENE ═══ */
