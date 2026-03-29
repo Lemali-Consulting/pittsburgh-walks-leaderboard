@@ -28,7 +28,7 @@ def fetch_all_features():
         where = "CreationDate>=timestamp'2025-09-10 00:00:00'"
         params = urllib.parse.urlencode({
             "where": where,
-            "outFields": "name,email,neighborhood",
+            "outFields": "name,email,neighborhood,CreationDate",
             "resultOffset": offset,
             "resultRecordCount": BATCH_SIZE,
             "f": "json",
@@ -52,13 +52,14 @@ def fetch_all_features():
 def write_raw_csv(features, path):
     with open(path, "w", newline="", encoding="utf-8") as f:
         writer = csv.writer(f)
-        writer.writerow(["Username", "Email address", "Neighborhood"])
+        writer.writerow(["Username", "Email address", "Neighborhood", "CreationDate"])
         for feat in features:
             attrs = feat.get("attributes", {})
             writer.writerow([
                 attrs.get("name", ""),
                 attrs.get("email", ""),
                 attrs.get("neighborhood", ""),
+                attrs.get("CreationDate", ""),
             ])
 
 

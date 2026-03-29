@@ -247,6 +247,42 @@
       letter-spacing: 0.08em;
     }
 
+    /* ═══ TABS ═══ */
+    .tabs {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      margin-bottom: 0;
+      animation: fadeUp 0.5s ease-out 0.3s both;
+    }
+
+    .tab-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      padding: 0.6rem 1.2rem;
+      background: rgba(5, 0, 20, 0.6);
+      color: rgba(0, 255, 255, 0.35);
+      border: 2px solid var(--panel-border);
+      border-bottom: none;
+      cursor: pointer;
+      letter-spacing: 0.06em;
+      transition: color 0.2s ease, background 0.2s ease, text-shadow 0.2s ease;
+    }
+
+    .tab-btn:first-child {
+      border-right: none;
+    }
+
+    .tab-btn:hover {
+      color: rgba(0, 255, 255, 0.6);
+    }
+
+    .tab-btn.active {
+      background: var(--panel);
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    }
+
     /* ═══ LEADERBOARD ═══ */
     .leaderboard {
       background: var(--panel);
@@ -448,6 +484,7 @@
       td { padding: 0.5rem 0.6rem; font-size: 0.5rem; }
       thead th { padding: 0.5rem 0.6rem; font-size: 0.45rem; }
       tbody tr.top-rank td { font-size: 0.58rem; }
+      .tab-btn { font-size: 0.42rem; padding: 0.5rem 0.8rem; }
       .synth-logo .tg .name { font-size: 0.6rem; }
       .synth-logo .tg .sub { font-size: 0.4rem; }
     }
@@ -509,6 +546,11 @@
       </div>
     </div>
 
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="overall">ALL TIME</button>
+      <button class="tab-btn" data-tab="month">LAST 30 DAYS</button>
+    </div>
+
     <div class="leaderboard" id="leaderboard-wrapper">
       <table>
         <thead>
@@ -555,60 +597,92 @@
       '#ff00aa'
     ];
 
+    var allRecords = [];
+    var activeTab = 'overall';
+
     fetch('data/processed-survey.csv')
       .then(function(r) { return r.text(); })
       .then(function(csv) {
-        var lines = csv.split('\n');
+        var lines = csv.replace(/\r/g, '').split('\n');
         var headers = parseCSVLine(lines[0]);
         var usernameIdx = headers.indexOf('Username');
-
-        var counts = {};
-        var total = 0;
+        var dateIdx = headers.indexOf('CreationDate');
 
         for (var i = 1; i < lines.length; i++) {
           if (!lines[i].trim()) continue;
           var row = parseCSVLine(lines[i]);
           var user = (row[usernameIdx] || '').trim();
+          var timestamp = dateIdx >= 0 ? Number(row[dateIdx]) : 0;
 
           if (user) {
-            counts[user] = (counts[user] || 0) + 1;
-            total++;
+            allRecords.push({ user: user, timestamp: timestamp });
           }
         }
 
-        var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
+        renderLeaderboard('overall');
 
-        // Animate stat counters
-        animateCounter(document.getElementById('stat-surveys'), total);
-        animateCounter(document.getElementById('stat-contributors'), sorted.length);
-
-        // Build all rows
-        var html = '';
-
-        sorted.slice(0, 25).forEach(function(entry, idx) {
-          var user = entry[0];
-          var count = entry[1];
-          var rank = idx + 1;
-          var color = NEON_COLORS[idx % NEON_COLORS.length];
-          var delay = Math.min(0.4 + idx * 0.04, 2.5);
-
-          var classes = '';
-          if (idx < 3) classes = 'top-rank top-rank-' + (idx + 1);
-
-          // Insert a divider after the top 3
-          if (idx === 3) {
-            html += '<tr class="divider-row" aria-hidden="true"><td colspan="3"></td></tr>';
-          }
-
-          html += '<tr class="' + classes + '" style="color:' + color + '; animation-delay:' + delay + 's">'
-            + '<td>' + rank + '</td>'
-            + '<td>' + escapeHtml(user) + '</td>'
-            + '<td>' + count + '</td>'
-            + '</tr>';
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var tab = this.getAttribute('data-tab');
+            if (tab === activeTab) return;
+            activeTab = tab;
+            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            renderLeaderboard(tab);
+          });
         });
-
-        document.getElementById('leaderboard-body').innerHTML = html;
       });
+
+    function renderLeaderboard(tab) {
+      var records = allRecords;
+
+      if (tab === 'month') {
+        var cutoff = Date.now() - (30 * 24 * 60 * 60 * 1000);
+        records = allRecords.filter(function(r) { return r.timestamp >= cutoff; });
+      }
+
+      var counts = {};
+      var total = 0;
+
+      for (var i = 0; i < records.length; i++) {
+        var user = records[i].user;
+        counts[user] = (counts[user] || 0) + 1;
+        total++;
+      }
+
+      var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
+
+      // Update stat counters
+      animateCounter(document.getElementById('stat-surveys'), total);
+      animateCounter(document.getElementById('stat-contributors'), sorted.length);
+
+      // Build rows
+      var html = '';
+
+      sorted.slice(0, 25).forEach(function(entry, idx) {
+        var user = entry[0];
+        var count = entry[1];
+        var rank = idx + 1;
+        var color = NEON_COLORS[idx % NEON_COLORS.length];
+        var delay = Math.min(0.4 + idx * 0.04, 2.5);
+
+        var classes = '';
+        if (idx < 3) classes = 'top-rank top-rank-' + (idx + 1);
+
+        if (idx === 3) {
+          html += '<tr class="divider-row" aria-hidden="true"><td colspan="3"></td></tr>';
+        }
+
+        html += '<tr class="' + classes + '" style="color:' + color + '; animation-delay:' + delay + 's">'
+          + '<td>' + rank + '</td>'
+          + '<td>' + escapeHtml(user) + '</td>'
+          + '<td>' + count + '</td>'
+          + '</tr>';
+      });
+
+      document.getElementById('leaderboard-body').innerHTML = html;
+    }
 
     function animateCounter(el, target) {
       var duration = 1400;

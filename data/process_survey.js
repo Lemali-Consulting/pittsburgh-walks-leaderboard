@@ -1,6 +1,7 @@
 /**
  * Data pipeline to process raw-survey.csv:
  * - Remove rows with "Training" username (case-insensitive)
+ * - Remove rows with system-generated usernames (s-\d+\w+ pattern)
  * - Deduplicate users by email (case-insensitive)
  * - For rows with the same email, use the first username encountered
  * - Username comparisons are case-insensitive
@@ -78,9 +79,12 @@ function processSurvey(inputPath, outputPath) {
   const { headers, rows: allRows } = parseCSV(content);
 
   // Filter out rows with "Training" username (case-insensitive)
+  // and rows with system-generated usernames matching s-<digits><word chars>
   const rows = allRows.filter(row => {
-    const username = (row['Username'] || '').trim().toLowerCase();
-    return username !== 'training';
+    const username = (row['Username'] || '').trim();
+    if (username.toLowerCase() === 'training') return false;
+    if (/^s-\d+\w+$/i.test(username)) return false;
+    return true;
   });
   const trainingRowsRemoved = allRows.length - rows.length;
 
@@ -128,13 +132,13 @@ function processSurvey(inputPath, outputPath) {
 
 // Main execution
 const scriptDir = __dirname;
-const inputFile = path.join(scriptDir, 'raw-survey.csv');
-const outputFile = path.join(scriptDir, 'processed-survey.csv');
+const inputFile = process.env.SURVEY_INPUT || path.join(scriptDir, 'raw-survey.csv');
+const outputFile = process.env.SURVEY_OUTPUT || path.join(scriptDir, 'processed-survey.csv');
 
 const stats = processSurvey(inputFile, outputFile);
 
 console.log(`Total rows in input: ${stats.totalRows}`);
-console.log(`Removed ${stats.trainingRowsRemoved} "Training" rows`);
+console.log(`Removed ${stats.trainingRowsRemoved} filtered rows (Training + system-generated)`);
 console.log(`Processed ${stats.rowsProcessed} rows`);
 console.log(`Found ${stats.uniqueEmails} unique emails`);
 console.log(`Changed ${stats.usernamesChanged} usernames to match first occurrence`);
