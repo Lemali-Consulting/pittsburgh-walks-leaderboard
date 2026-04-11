@@ -24,7 +24,7 @@ function cleanup() {
   }
 }
 
-// Test: usernames matching s-\d+\w+ pattern are filtered out
+// Test: system-generated s-ID usernames are filtered out, including dash variants
 try {
   const input = [
     'Username,Email address,Neighborhood,CreationDate',
@@ -32,6 +32,10 @@ try {
     'Alice,alice@example.com,Squirrel Hill,1700000000000',
     's-99z,spam@example.com,Oakland,1700000000000',
     'Bob,bob@example.com,Lawrenceville,1700000000000',
+    's\u2014328sb,emdash@example.com,Hill District,1700000000000',
+    'S322ad,nodash@example.com,Greenfield,1700000000000',
+    'S-328SB,upper@example.com,North Oakland,1700000000000',
+    'Sal8,legit-s-name@example.com,Shadyside,1700000000000',
   ].join('\n');
 
   const output = runPipeline(input);
@@ -40,12 +44,15 @@ try {
 
   const usernames = dataLines.map(line => line.split(',')[0]);
 
-  console.assert(dataLines.length === 2, `Expected 2 rows, got ${dataLines.length}`);
+  console.assert(dataLines.length === 3, `Expected 3 rows, got ${dataLines.length}`);
   console.assert(usernames.includes('Alice'), 'Alice should be present');
   console.assert(usernames.includes('Bob'), 'Bob should be present');
-  console.assert(!usernames.some(u => /^s-\d+\w+$/i.test(u)), 'No s-ID usernames should be present');
+  console.assert(usernames.includes('Sal8'), 'Sal8 (legit username starting with S) should be present');
+  console.assert(!usernames.some(u => u.toLowerCase().includes('328')), 'No s-ID variants should be present');
+  console.assert(!usernames.some(u => u.toLowerCase().includes('322')), 'No s-ID variants should be present');
+  console.assert(!usernames.some(u => u.toLowerCase().startsWith('s-')), 'No hyphen s-IDs should be present');
 
-  console.log('PASS: s-ID usernames are filtered out');
+  console.log('PASS: s-ID usernames (all variants) are filtered out');
 } catch (e) {
   console.error('FAIL:', e.message);
   process.exitCode = 1;

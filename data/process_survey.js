@@ -1,7 +1,8 @@
 /**
  * Data pipeline to process raw-survey.csv:
  * - Remove rows with "Training" username (case-insensitive)
- * - Remove rows with system-generated usernames (s-\d+\w+ pattern)
+ * - Remove rows with system-generated usernames (s<sep?><digits><letters>
+ *   pattern, where sep may be '-', em-dash, or absent — e.g. s-328sb, s—328sb, S322ad)
  * - Deduplicate users by email (case-insensitive)
  * - For rows with the same email, use the first username encountered
  * - Username comparisons are case-insensitive
@@ -79,11 +80,12 @@ function processSurvey(inputPath, outputPath) {
   const { headers, rows: allRows } = parseCSV(content);
 
   // Filter out rows with "Training" username (case-insensitive)
-  // and rows with system-generated usernames matching s-<digits><word chars>
+  // and rows with system-generated usernames: start with 's', optional non-word
+  // separator (hyphen, em-dash, or none), then digits, then word chars.
   const rows = allRows.filter(row => {
     const username = (row['Username'] || '').trim();
     if (username.toLowerCase() === 'training') return false;
-    if (/^s-\d+\w+$/i.test(username)) return false;
+    if (/^s\W*\d+\w+$/i.test(username)) return false;
     return true;
   });
   const trainingRowsRemoved = allRows.length - rows.length;
