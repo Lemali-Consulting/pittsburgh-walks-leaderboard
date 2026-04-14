@@ -118,8 +118,9 @@ function processSurvey(inputPath, outputPath) {
     }
   }
 
-  // Write output
-  const output = toCSV(headers, rows);
+  // Write output — strip the Email address column so emails are never served publicly.
+  const outputHeaders = headers.filter(h => h !== 'Email address');
+  const output = toCSV(outputHeaders, rows);
   fs.writeFileSync(outputPath, output, 'utf-8');
 
   return {
@@ -128,7 +129,6 @@ function processSurvey(inputPath, outputPath) {
     rowsProcessed: rows.length,
     uniqueEmails: emailToUsername.size,
     usernamesChanged,
-    emailUsernameMapping: Object.fromEntries(emailToUsername)
   };
 }
 
@@ -144,7 +144,3 @@ console.log(`Removed ${stats.trainingRowsRemoved} filtered rows (Training + syst
 console.log(`Processed ${stats.rowsProcessed} rows`);
 console.log(`Found ${stats.uniqueEmails} unique emails`);
 console.log(`Changed ${stats.usernamesChanged} usernames to match first occurrence`);
-console.log('\nEmail -> Username mapping:');
-for (const [email, username] of Object.entries(stats.emailUsernameMapping)) {
-  console.log(`  ${email} -> ${username}`);
-}
