@@ -476,6 +476,100 @@
       line-height: 1.4;
     }
 
+    /* ═══ LOOKUP ═══ */
+    .lookup-wrap {
+      margin-bottom: 0;
+      padding: 0.85rem 1rem 0.9rem;
+      background: var(--panel);
+      border: 2px solid var(--panel-border);
+      border-bottom: none;
+      border-top: 1px solid rgba(0, 255, 255, 0.08);
+      animation: fadeUp 0.5s ease-out 0.35s both;
+    }
+
+    .lookup-inner {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+
+    .lookup-input {
+      flex: 1;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.5rem;
+      background: rgba(0, 255, 255, 0.04);
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      color: var(--cyan);
+      padding: 0.55rem 0.7rem;
+      outline: none;
+      letter-spacing: 0.06em;
+      caret-color: var(--magenta);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .lookup-input::placeholder {
+      color: rgba(0, 255, 255, 0.22);
+    }
+
+    .lookup-input:focus {
+      border-color: rgba(0, 255, 255, 0.5);
+      box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+    }
+
+    .lookup-result {
+      font-size: 0.45rem;
+      margin-top: 0.6rem;
+      letter-spacing: 0.06em;
+      min-height: 1.2em;
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.4);
+    }
+
+    .lookup-result.not-found {
+      color: rgba(0, 255, 255, 0.35);
+      text-shadow: none;
+    }
+
+    .lookup-result .rank-highlight {
+      color: var(--yellow);
+      text-shadow: 0 0 8px rgba(255, 220, 0, 0.5);
+    }
+
+    .lookup-result .score-highlight {
+      color: var(--magenta);
+      text-shadow: 0 0 8px rgba(255, 0, 255, 0.5);
+    }
+
+    /* ═══ SHOW ALL BUTTON ═══ */
+    .show-all-wrap {
+      background: var(--panel);
+      border: 2px solid var(--panel-border);
+      border-top: 1px solid rgba(0, 255, 255, 0.08);
+      padding: 0.75rem 1rem;
+      text-align: center;
+    }
+
+    .show-all-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      background: none;
+      border: 1px solid rgba(0, 255, 255, 0.2);
+      color: rgba(0, 255, 255, 0.45);
+      padding: 0.5rem 1.1rem;
+      cursor: pointer;
+      letter-spacing: 0.07em;
+      transition: color 0.2s ease, border-color 0.2s ease, text-shadow 0.2s ease;
+    }
+
+    .show-all-btn:hover {
+      color: var(--cyan);
+      border-color: rgba(0, 255, 255, 0.45);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    }
+
+    tr.hidden-row { display: none; }
+    tr.hidden-row.revealed { display: table-row; }
+
     /* ═══ RESPONSIVE ═══ */
     @media (max-width: 520px) {
       .container { padding: 2.5rem 0.75rem 4rem; }
@@ -487,6 +581,8 @@
       .tab-btn { font-size: 0.42rem; padding: 0.5rem 0.8rem; }
       .synth-logo .tg .name { font-size: 0.6rem; }
       .synth-logo .tg .sub { font-size: 0.4rem; }
+      .lookup-input { font-size: 0.45rem; }
+      .show-all-btn { font-size: 0.4rem; }
     }
   </style>
 </head>
@@ -551,6 +647,20 @@
       <button class="tab-btn" data-tab="month">LAST 30 DAYS</button>
     </div>
 
+    <div class="lookup-wrap">
+      <div class="lookup-inner">
+        <input
+          class="lookup-input"
+          id="lookup-input"
+          type="text"
+          placeholder="FIND YOUR NAME..."
+          autocomplete="off"
+          spellcheck="false"
+        >
+      </div>
+      <div class="lookup-result" id="lookup-result"></div>
+    </div>
+
     <div class="leaderboard" id="leaderboard-wrapper">
       <table>
         <thead>
@@ -562,6 +672,10 @@
         </thead>
         <tbody id="leaderboard-body"></tbody>
       </table>
+    </div>
+
+    <div class="show-all-wrap" id="show-all-wrap" style="display:none">
+      <button class="show-all-btn" id="show-all-btn">SHOW ALL</button>
     </div>
 
     <footer>
@@ -599,6 +713,8 @@
 
     var allRecords = [];
     var activeTab = 'overall';
+    var currentSorted = [];
+    var listExpanded = false;
 
     fetch('data/processed-survey.csv')
       .then(function(r) { return r.text(); })
@@ -627,12 +743,78 @@
             var tab = this.getAttribute('data-tab');
             if (tab === activeTab) return;
             activeTab = tab;
+            listExpanded = false;
             document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
             this.classList.add('active');
             renderLeaderboard(tab);
           });
         });
+
+        // Show-all toggle
+        document.getElementById('show-all-btn').addEventListener('click', function() {
+          listExpanded = !listExpanded;
+          document.querySelectorAll('#leaderboard-body tr.hidden-row').forEach(function(row) {
+            if (listExpanded) row.classList.add('revealed');
+            else row.classList.remove('revealed');
+          });
+          updateShowAllBtn();
+        });
+
+        // Username lookup
+        document.getElementById('lookup-input').addEventListener('input', function() {
+          runLookup(this.value);
+        });
       });
+
+    function runLookup(query) {
+      var resultEl = document.getElementById('lookup-result');
+      var q = query.trim().toLowerCase();
+
+      if (!q) {
+        resultEl.textContent = '';
+        resultEl.className = 'lookup-result';
+        return;
+      }
+
+      var match = null;
+      for (var i = 0; i < currentSorted.length; i++) {
+        if (currentSorted[i][0].toLowerCase() === q) {
+          match = { rank: i + 1, user: currentSorted[i][0], count: currentSorted[i][1] };
+          break;
+        }
+      }
+
+      if (!match) {
+        // Try partial match
+        for (var j = 0; j < currentSorted.length; j++) {
+          if (currentSorted[j][0].toLowerCase().indexOf(q) !== -1) {
+            match = { rank: j + 1, user: currentSorted[j][0], count: currentSorted[j][1] };
+            break;
+          }
+        }
+      }
+
+      if (match) {
+        resultEl.className = 'lookup-result';
+        resultEl.innerHTML =
+          escapeHtml(match.user) + ' — '
+          + 'RANK <span class="rank-highlight">#' + match.rank + '</span>'
+          + ' · <span class="score-highlight">' + match.count + ' SURVEY' + (match.count === 1 ? '' : 'S') + '</span>';
+      } else {
+        resultEl.className = 'lookup-result not-found';
+        resultEl.textContent = 'NO MATCH FOUND FOR "' + query.trim().toUpperCase() + '"';
+      }
+    }
+
+    function updateShowAllBtn() {
+      var btn = document.getElementById('show-all-btn');
+      var hiddenCount = currentSorted.length - 25;
+      if (listExpanded) {
+        btn.textContent = 'SHOW LESS';
+      } else {
+        btn.textContent = 'SHOW ALL (' + currentSorted.length + ')';
+      }
+    }
 
     function renderLeaderboard(tab) {
       var records = allRecords;
@@ -651,16 +833,16 @@
         total++;
       }
 
-      var sorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
+      currentSorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
 
       // Update stat counters
       animateCounter(document.getElementById('stat-surveys'), total);
-      animateCounter(document.getElementById('stat-contributors'), sorted.length);
+      animateCounter(document.getElementById('stat-contributors'), currentSorted.length);
 
-      // Build rows
+      // Build rows (all of them; rows beyond 25 start hidden)
       var html = '';
 
-      sorted.slice(0, 25).forEach(function(entry, idx) {
+      currentSorted.forEach(function(entry, idx) {
         var user = entry[0];
         var count = entry[1];
         var rank = idx + 1;
@@ -669,6 +851,7 @@
 
         var classes = '';
         if (idx < 3) classes = 'top-rank top-rank-' + (idx + 1);
+        if (idx >= 25) classes += (classes ? ' ' : '') + 'hidden-row' + (listExpanded ? ' revealed' : '');
 
         if (idx === 3) {
           html += '<tr class="divider-row" aria-hidden="true"><td colspan="3"></td></tr>';
@@ -682,6 +865,19 @@
       });
 
       document.getElementById('leaderboard-body').innerHTML = html;
+
+      // Show/hide the expand button
+      var showAllWrap = document.getElementById('show-all-wrap');
+      if (currentSorted.length > 25) {
+        showAllWrap.style.display = '';
+        updateShowAllBtn();
+      } else {
+        showAllWrap.style.display = 'none';
+      }
+
+      // Re-run lookup with current query in case tab changed
+      var lookupVal = document.getElementById('lookup-input').value;
+      if (lookupVal.trim()) runLookup(lookupVal);
     }
 
     function animateCounter(el, target) {
