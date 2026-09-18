@@ -6,9 +6,33 @@ on:
     - cron: "0 11 * * *"
   workflow_dispatch: # Allow manual triggers from GitHub UI
 
+# actions: write is needed by the keepalive step below.
+permissions:
+  actions: write
+  contents: read
+
 jobs:
   trigger-build:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Trigger Netlify deploy
         run: curl -X POST -d '{}' "${{ secrets.NETLIFY_BUILD_HOOK }}"
+
+      # GitHub silently disables cron schedules after 60 days without a commit
+      # (this happened 2026-08-30 and the site served stale data for weeks).
+      # Re-enabling the workflow via the API on every run resets that clock
+      # without needing commits.
+      - name: Keep schedule alive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow enable daily-build.yml --repo "${{ github.repository }}"
+
+      # Give Netlify time to finish the build, then fail loudly if the live
+      # data is stale. If the build is still running the check sees the
+      # previous day's output, which is still a valid staleness check.
+      - name: Check live data freshness
+        run: |
+          sleep 180
+          python3 .github/scripts/check_freshness.py
