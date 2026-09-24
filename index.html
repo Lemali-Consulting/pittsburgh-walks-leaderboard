@@ -7,7 +7,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
 
   <style>
     :root {
@@ -601,6 +601,221 @@
     tr.hidden-row { display: none; }
     tr.hidden-row.revealed { display: table-row; }
 
+    /* ═══ OCTOBER CHALLENGE: PROMO BANNER (main view) ═══ */
+    .promo-banner {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.7rem;
+      margin-bottom: 1.5rem;
+      padding: 0.85rem 1rem;
+      font-size: 0.55rem;
+      line-height: 1.6;
+      letter-spacing: 0.06em;
+      text-align: center;
+      text-decoration: none;
+      color: var(--yellow);
+      text-shadow: 0 0 10px rgba(255, 220, 0, 0.6);
+      background: rgba(40, 0, 50, 0.75);
+      border: 2px solid var(--magenta);
+      box-shadow: 0 0 14px rgba(255, 0, 255, 0.35), inset 0 0 18px rgba(255, 0, 255, 0.12);
+      animation: fadeUp 0.5s ease-out 0.25s both, promoGlow 2.4s ease-in-out 1s infinite;
+      transition: transform 0.15s ease;
+    }
+    .promo-banner[hidden] { display: none; }
+    .promo-banner:hover { transform: translateY(-2px); }
+    /* Press Start 2P lacks these glyphs; the fallback font draws them tiny. */
+    .promo-star, .promo-arrow { font-family: sans-serif; font-size: 1.6em; line-height: 1; }
+    .promo-star { color: var(--magenta); text-shadow: 0 0 8px var(--magenta); }
+    .promo-arrow { animation: nudge 1.2s ease-in-out infinite; }
+
+    @keyframes promoGlow {
+      0%, 100% { box-shadow: 0 0 14px rgba(255, 0, 255, 0.35), inset 0 0 18px rgba(255, 0, 255, 0.12); }
+      50% { box-shadow: 0 0 26px rgba(255, 0, 255, 0.6), inset 0 0 24px rgba(255, 0, 255, 0.2); }
+    }
+    @keyframes nudge {
+      0%, 100% { transform: translateX(0); }
+      50% { transform: translateX(4px); }
+    }
+
+    /* ═══ OCTOBER CHALLENGE: VIEW ═══ */
+    .comp-view { animation: fadeUp 0.4s ease-out both; }
+
+    .back-link {
+      display: inline-block;
+      margin-bottom: 1.5rem;
+      font-size: 0.5rem;
+      letter-spacing: 0.06em;
+      color: rgba(0, 255, 255, 0.7);
+      text-decoration: none;
+      transition: color 0.2s ease, text-shadow 0.2s ease;
+    }
+    .back-link:hover { color: var(--cyan); text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
+
+    .comp-hero { text-align: center; margin-bottom: 1.75rem; }
+
+    .comp-kicker {
+      font-size: 0.5rem;
+      letter-spacing: 0.2em;
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+    }
+
+    .comp-title {
+      margin-top: 0.7rem;
+      font-size: clamp(0.95rem, 4vw, 1.4rem);
+      font-weight: normal;
+      line-height: 1.6;
+      color: var(--yellow);
+      text-shadow: 0 0 12px rgba(255, 220, 0, 0.6), 0 0 36px rgba(255, 136, 0, 0.35);
+    }
+
+    .comp-goal {
+      margin-top: 0.8rem;
+      font-size: 0.55rem;
+      letter-spacing: 0.06em;
+      color: var(--magenta);
+      text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    }
+
+    .comp-tab[hidden] { display: none; }
+
+    .comp-board-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      padding: 0.25rem 1rem 0.85rem;
+      border-bottom: 1px solid rgba(0, 255, 255, 0.1);
+    }
+
+    .comp-board-title {
+      font-size: 0.55rem;
+      line-height: 1.6;
+      color: var(--cyan);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.45);
+    }
+
+    .comp-board-dates {
+      display: block;
+      margin-top: 0.25rem;
+      font-size: 0.42rem;
+      color: rgba(0, 255, 255, 0.55);
+      text-shadow: none;
+    }
+
+    .comp-status {
+      flex-shrink: 0;
+      font-size: 0.42rem;
+      padding: 0.35rem 0.5rem;
+      letter-spacing: 0.08em;
+      border: 1px solid currentColor;
+    }
+    .comp-status-live { color: #00ff66; text-shadow: 0 0 8px #00ff66; animation: blink 1.6s steps(2, start) infinite; }
+    .comp-status-upcoming { color: var(--orange); text-shadow: 0 0 8px rgba(255, 136, 0, 0.6); }
+    .comp-status-final { color: var(--magenta); text-shadow: 0 0 8px rgba(255, 0, 255, 0.6); }
+
+    @keyframes blink { to { visibility: hidden; } }
+
+    .comp-table .col-rank { width: 17%; }
+    .comp-table .col-score { width: 17%; }
+    .comp-table .col-prize { width: 26%; }
+
+    .comp-prize {
+      font-size: 0.48rem !important;
+      color: var(--yellow);
+      text-shadow: 0 0 8px rgba(255, 220, 0, 0.5) !important;
+    }
+
+    .comp-empty td {
+      padding: 1.6rem 1rem;
+      font-size: 0.5rem;
+      line-height: 1.8;
+      color: rgba(0, 255, 255, 0.6);
+      text-shadow: none !important;
+    }
+
+    .comp-updated {
+      margin-top: 0.85rem;
+      text-align: center;
+      font-family: 'VT323', monospace;
+      font-size: 1.05rem;
+      line-height: 1.3;
+      color: rgba(0, 255, 255, 0.7);
+    }
+
+    .comp-panel {
+      margin-top: 1.75rem;
+      padding: 1.25rem 1.25rem 1.35rem;
+      background: var(--panel);
+      border: 2px solid var(--panel-border);
+    }
+
+    .comp-panel-title {
+      margin-bottom: 1rem;
+      font-size: 0.6rem;
+      font-weight: normal;
+      letter-spacing: 0.08em;
+      color: var(--magenta);
+      text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+    }
+
+    /* Long-form copy uses VT323: same retro-terminal feel as the pixel font,
+       but readable at paragraph length. */
+    .comp-copy {
+      font-family: 'VT323', monospace;
+      font-size: 1.2rem;
+      line-height: 1.35;
+      color: #e8e0ff;
+    }
+    .comp-copy p + p, .comp-copy p + .prize-group, .prize-group + .prize-group, .prize-group + p { margin-top: 0.9rem; }
+    .comp-copy a {
+      color: var(--cyan);
+      text-decoration: underline;
+      text-underline-offset: 0.15em;
+      text-shadow: 0 0 6px rgba(0, 255, 255, 0.4);
+    }
+    .comp-copy a:hover { color: #fff; }
+    .comp-copy strong { color: var(--yellow); font-weight: normal; text-shadow: 0 0 6px rgba(255, 220, 0, 0.4); }
+
+    .prize-group {
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--cyan);
+      background: rgba(0, 255, 255, 0.05);
+    }
+    .prize-group-title {
+      margin-bottom: 0.45rem;
+      font-family: 'Press Start 2P', monospace;
+      font-size: 0.45rem;
+      line-height: 1.7;
+      letter-spacing: 0.06em;
+      color: var(--cyan);
+    }
+    .prize-group ul { list-style: none; }
+    .prize-group li::before { content: '\25B8  '; color: var(--magenta); }
+
+    .comp-fine { font-size: 1.05rem; color: rgba(232, 224, 255, 0.75); }
+
+    .comp-cta {
+      display: block;
+      margin-top: 1.25rem;
+      padding: 0.8rem 1rem;
+      text-align: center;
+      font-size: 0.5rem;
+      line-height: 1.7;
+      letter-spacing: 0.06em;
+      text-decoration: none;
+      color: var(--bg-deep);
+      background: var(--cyan);
+      box-shadow: 0 0 16px rgba(0, 255, 255, 0.45);
+      transition: box-shadow 0.2s ease, transform 0.15s ease;
+    }
+    .comp-cta:hover { transform: translateY(-2px); box-shadow: 0 0 26px rgba(0, 255, 255, 0.7); }
+
+    @media (prefers-reduced-motion: reduce) {
+      .promo-banner, .promo-arrow, .comp-status-live { animation: none; }
+    }
+
     /* ═══ RESPONSIVE ═══ */
     @media (max-width: 520px) {
       .container { padding: 2.5rem 0.75rem 4rem; }
@@ -614,6 +829,10 @@
       .synth-logo .tg .sub { font-size: 0.4rem; }
       .lookup-input { font-size: 0.45rem; }
       .show-all-btn { font-size: 0.4rem; }
+      .promo-banner { font-size: 0.45rem; }
+      .comp-tab { font-size: 0.38rem; padding: 0.5rem 0.6rem; }
+      .comp-prize { font-size: 0.42rem !important; }
+      .comp-copy { font-size: 1.1rem; }
     }
   </style>
 </head>
@@ -662,6 +881,7 @@
       </p>
     </header>
 
+    <div id="main-view">
     <div class="stats">
       <div class="stat">
         <span class="stat-number" id="stat-surveys">&mdash;</span>
@@ -672,6 +892,12 @@
         <span class="stat-label">PLAYERS</span>
       </div>
     </div>
+
+    <a class="promo-banner" id="promo-banner" href="#october" hidden>
+      <span class="promo-star" aria-hidden="true">&#9733;</span>
+      OCTOBER CHALLENGE &middot; WIN PRIZES
+      <span class="promo-arrow" aria-hidden="true">&#9654;</span>
+    </a>
 
     <div class="tabs">
       <button class="tab-btn active" data-tab="overall">ALL TIME</button>
@@ -713,6 +939,96 @@
     <div class="show-all-wrap" id="show-all-wrap" style="display:none">
       <button class="show-all-btn" id="show-all-btn">SHOW ALL</button>
     </div>
+    </div>
+
+    <section class="comp-view" id="competition-view" aria-labelledby="comp-title" hidden>
+      <a class="back-link" href="#leaderboard">&#9664; FULL LEADERBOARD</a>
+
+      <div class="comp-hero">
+        <p class="comp-kicker">OCTOBER 2026</p>
+        <h2 class="comp-title" id="comp-title">SURVEY<br>CHALLENGE</h2>
+        <p class="comp-goal">GOAL: 8,000 SURVEYS</p>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <span class="stat-number" id="comp-stat-surveys">&mdash;</span>
+          <span class="stat-label">OCTOBER SURVEYS</span>
+        </div>
+        <div class="stat">
+          <span class="stat-number" id="comp-stat-players">&mdash;</span>
+          <span class="stat-label">PLAYERS</span>
+        </div>
+      </div>
+
+      <div class="tabs comp-tabs">
+        <button class="tab-btn comp-tab" data-board="week">WEEK W/O DRIVING</button>
+        <button class="tab-btn comp-tab" data-board="month">OCTOBER</button>
+      </div>
+
+      <div class="leaderboard">
+        <div class="comp-board-head">
+          <div class="comp-board-title">
+            <span id="comp-board-title"></span>
+            <span class="comp-board-dates" id="comp-board-dates"></span>
+          </div>
+          <span class="comp-status" id="comp-board-status"></span>
+        </div>
+        <table class="comp-table">
+          <colgroup>
+            <col class="col-rank">
+            <col class="col-name">
+            <col class="col-score">
+            <col class="col-prize">
+          </colgroup>
+          <thead>
+            <tr>
+              <th>RANK</th>
+              <th>NAME</th>
+              <th>SCORE</th>
+              <th>PRIZE</th>
+            </tr>
+          </thead>
+          <tbody id="comp-board-body"></tbody>
+        </table>
+      </div>
+
+      <p class="comp-updated">Standings update once a day, early each morning (Eastern). Surveys you submit today appear tomorrow.</p>
+
+      <div class="comp-panel">
+        <h3 class="comp-panel-title">HOW TO WIN</h3>
+        <div class="comp-copy">
+          <p>We're doing a big push to get to <strong>8,000 surveys in October!</strong> Survey as many unsurveyed sidewalk blocks as you can for a chance to win these prizes:</p>
+
+          <div class="prize-group">
+            <p class="prize-group-title">WEEK WITHOUT DRIVING &middot; OCT 1&ndash;8</p>
+            <p>The <strong>top 2</strong> survey collectors will each get a <strong>$50 Visa gift card</strong>.</p>
+          </div>
+
+          <div class="prize-group">
+            <p class="prize-group-title">ALL OF OCTOBER</p>
+            <p>The top 5 survey collectors will get one of the following prizes:</p>
+            <ul>
+              <li>1st place: <strong>$50 Visa gift card</strong></li>
+              <li>2nd place: <strong>$20 Visa gift card</strong></li>
+              <li>3rd&ndash;5th place: a <strong>$10 gift card to Millie's Ice Cream</strong></li>
+            </ul>
+          </div>
+
+          <p>Anyone who collects <strong>100 surveys</strong> will get <a href="https://drive.google.com/file/d/1Uxhim7gGKfUZ3LZO9yAPzta91W4fUhbG/view" target="_blank" rel="noopener">this fun sticker</a> (eligible through June 2027).</p>
+        </div>
+      </div>
+
+      <div class="comp-panel">
+        <h3 class="comp-panel-title">THE RULES</h3>
+        <div class="comp-copy comp-fine">
+          <p>You must <a href="http://www.pittsburghwalks.org/sidewalks" target="_blank" rel="noopener">attend a Safe Sidewalks Crew training</a> and register a username to participate. Survey submissions may be audited to verify that they are valid and properly recorded.</p>
+        </div>
+        <a class="comp-cta" href="https://weekwithoutdriving.org" target="_blank" rel="noopener">
+          ABOUT WEEK WITHOUT DRIVING &#9654;
+        </a>
+      </div>
+    </section>
 
     <footer>
       HELPING MAKE PITTSBURGH'S<br>SIDEWALKS SAFER FOR EVERYONE
@@ -735,6 +1051,8 @@
     </div>
   </div>
 
+  <script src="js/competition.js"></script>
+  <script src="js/competition-view.js"></script>
   <script>
     var NEON_COLORS = [
       '#ff0055',
@@ -772,15 +1090,16 @@
         }
 
         renderLeaderboard('overall');
+        CompetitionView.init({ records: allRecords, colors: NEON_COLORS });
 
         // Tab switching
-        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+        document.querySelectorAll('#main-view .tab-btn').forEach(function(btn) {
           btn.addEventListener('click', function() {
             var tab = this.getAttribute('data-tab');
             if (tab === activeTab) return;
             activeTab = tab;
             listExpanded = false;
-            document.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+            document.querySelectorAll('#main-view .tab-btn').forEach(function(b) { b.classList.remove('active'); });
             this.classList.add('active');
             renderLeaderboard(tab);
           });
