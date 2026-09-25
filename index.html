@@ -652,7 +652,17 @@
     }
     .back-link:hover { color: var(--cyan); text-shadow: 0 0 8px rgba(0, 255, 255, 0.5); }
 
-    .comp-hero { text-align: center; margin-bottom: 1.75rem; }
+    /* Sits on a dark panel: on shorter screens the fixed sun lands right
+       behind this block, and the yellow title vanished against it. */
+    .comp-hero {
+      text-align: center;
+      margin-bottom: 1.75rem;
+      padding: 1.4rem 1rem 1.3rem;
+      background: var(--panel);
+      border: 2px solid var(--panel-border);
+      box-shadow: 0 0 40px rgba(0, 0, 0, 0.5);
+    }
+    .comp-hero .stats { margin: 1.3rem 0 0; }
 
     .comp-kicker {
       font-size: 0.5rem;
@@ -948,16 +958,16 @@
         <p class="comp-kicker">OCTOBER 2026</p>
         <h2 class="comp-title" id="comp-title">SURVEY<br>CHALLENGE</h2>
         <p class="comp-goal">GOAL: 8,000 SURVEYS</p>
-      </div>
 
-      <div class="stats">
-        <div class="stat">
-          <span class="stat-number" id="comp-stat-surveys">&mdash;</span>
-          <span class="stat-label">OCTOBER SURVEYS</span>
-        </div>
-        <div class="stat">
-          <span class="stat-number" id="comp-stat-players">&mdash;</span>
-          <span class="stat-label">PLAYERS</span>
+        <div class="stats">
+          <div class="stat">
+            <span class="stat-number" id="comp-stat-surveys">&mdash;</span>
+            <span class="stat-label">OCTOBER SURVEYS</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number" id="comp-stat-players">&mdash;</span>
+            <span class="stat-label">PLAYERS</span>
+          </div>
         </div>
       </div>
 
@@ -1024,7 +1034,7 @@
         <div class="comp-copy comp-fine">
           <p>You must <a href="http://www.pittsburghwalks.org/sidewalks" target="_blank" rel="noopener">attend a Safe Sidewalks Crew training</a> and register a username to participate. Survey submissions may be audited to verify that they are valid and properly recorded.</p>
         </div>
-        <a class="comp-cta" href="https://weekwithoutdriving.org" target="_blank" rel="noopener">
+        <a class="comp-cta" href="https://weekwithoutdrivingpgh.org" target="_blank" rel="noopener">
           ABOUT WEEK WITHOUT DRIVING &#9654;
         </a>
       </div>
