@@ -3,7 +3,8 @@ Build script: fetches survey data from ArcGIS and runs the processing pipeline.
 
 1. Queries the ArcGIS Feature Service API (with pagination)
 2. Writes data/raw-survey.csv with columns expected by process_survey.js
-3. Runs process_survey.js to generate data/processed-survey.csv
+3. Runs process_survey.js to generate data/processed-survey.csv (leaderboard)
+   and data/group-surveys.csv (shared group accounts, counted toward the goal)
 """
 
 import csv

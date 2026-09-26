@@ -688,6 +688,46 @@
       text-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
     }
 
+    .comp-goal .nowrap { white-space: nowrap; }
+
+    .goal-meter {
+      max-width: 22rem;
+      margin: 0 auto;
+    }
+
+    .goal-bar {
+      margin-top: 0.7rem;
+      height: 0.75rem;
+      border: 1px solid var(--magenta);
+      box-shadow: 0 0 10px rgba(255, 0, 255, 0.35);
+      background: rgba(255, 0, 255, 0.06);
+    }
+
+    .goal-fill {
+      height: 100%;
+      width: 0;
+      background: linear-gradient(90deg, var(--magenta), var(--yellow));
+      box-shadow: 0 0 10px rgba(255, 220, 0, 0.5);
+      transition: width 1.2s ease-out;
+    }
+
+    .goal-count {
+      margin-top: 0.55rem;
+      font-size: 0.5rem;
+      line-height: 1.8;
+      color: var(--cyan);
+    }
+
+    .goal-remaining {
+      display: block;
+      color: var(--yellow);
+      text-shadow: 0 0 8px rgba(255, 220, 0, 0.45);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .goal-fill { transition: none; }
+    }
+
     .comp-tab[hidden] { display: none; }
 
     .comp-board-head {
@@ -957,7 +997,16 @@
       <div class="comp-hero">
         <p class="comp-kicker">OCTOBER 2026</p>
         <h2 class="comp-title" id="comp-title">SURVEY<br>CHALLENGE</h2>
-        <p class="comp-goal">GOAL: 8,000 SURVEYS</p>
+        <div class="goal-meter">
+          <p class="comp-goal">GOAL: <span id="goal-target">&mdash;</span> TOTAL SURVEYS <span class="nowrap">BY OCT 31</span></p>
+          <div class="goal-bar" id="goal-bar" role="progressbar" aria-label="Progress toward the total survey goal" aria-valuemin="0">
+            <div class="goal-fill" id="goal-fill"></div>
+          </div>
+          <p class="goal-count">
+            <span id="goal-reached">&mdash;</span> / <span id="goal-target-short">&mdash;</span>
+            <span class="goal-remaining" id="goal-remaining"></span>
+          </p>
+        </div>
 
         <div class="stats">
           <div class="stat">
@@ -1008,7 +1057,7 @@
       <div class="comp-panel">
         <h3 class="comp-panel-title">HOW TO WIN</h3>
         <div class="comp-copy">
-          <p>We're doing a big push to get to <strong>8,000 surveys in October!</strong> Survey as many unsurveyed sidewalk blocks as you can for a chance to win these prizes:</p>
+          <p>We're doing a big push to reach <strong>8,000 total surveys by the end of October!</strong> Survey as many unsurveyed sidewalk blocks as you can for a chance to win these prizes:</p>
 
           <div class="prize-group">
             <p class="prize-group-title">WEEK WITHOUT DRIVING &middot; OCT 1&ndash;8</p>
@@ -1080,27 +1129,50 @@
     var currentSorted = [];
     var listExpanded = false;
 
-    fetch('data/processed-survey.csv')
-      .then(function(r) { return r.text(); })
-      .then(function(csv) {
-        var lines = csv.replace(/\r/g, '').split('\n');
-        var headers = parseCSVLine(lines[0]);
-        var usernameIdx = headers.indexOf('Username');
-        var dateIdx = headers.indexOf('CreationDate');
+    var LEADERBOARD_DATA_URL = 'data/processed-survey.csv';
+    // Surveys from shared group accounts: counted toward the survey goal, never ranked.
+    var GROUP_SURVEYS_DATA_URL = 'data/group-surveys.csv';
 
-        for (var i = 1; i < lines.length; i++) {
-          if (!lines[i].trim()) continue;
-          var row = parseCSVLine(lines[i]);
-          var user = (row[usernameIdx] || '').trim();
-          var timestamp = dateIdx >= 0 ? Number(row[dateIdx]) : 0;
+    function fetchSurveyRecords(url) {
+      return fetch(url)
+        .then(function(r) {
+          if (!r.ok) throw new Error(url + ' responded ' + r.status);
+          return r.text();
+        })
+        .then(parseSurveyRecords);
+    }
 
-          if (user) {
-            allRecords.push({ user: user, timestamp: timestamp });
-          }
+    function parseSurveyRecords(csv) {
+      var records = [];
+      var lines = csv.replace(/\r/g, '').split('\n');
+      var headers = parseCSVLine(lines[0]);
+      var usernameIdx = headers.indexOf('Username');
+      var dateIdx = headers.indexOf('CreationDate');
+
+      for (var i = 1; i < lines.length; i++) {
+        if (!lines[i].trim()) continue;
+        var row = parseCSVLine(lines[i]);
+        var user = (row[usernameIdx] || '').trim();
+        var timestamp = dateIdx >= 0 ? Number(row[dateIdx]) : 0;
+
+        if (user) {
+          records.push({ user: user, timestamp: timestamp });
         }
+      }
+      return records;
+    }
+
+    Promise.all([
+      fetchSurveyRecords(LEADERBOARD_DATA_URL),
+      // A missing group file only undercounts the goal; it must not take down the leaderboard.
+      fetchSurveyRecords(GROUP_SURVEYS_DATA_URL).catch(function() { return []; })
+    ])
+      .then(function(results) {
+        allRecords = results[0];
+        var groupRecords = results[1];
 
         renderLeaderboard('overall');
-        CompetitionView.init({ records: allRecords, colors: NEON_COLORS });
+        CompetitionView.init({ records: allRecords, groupRecords: groupRecords, colors: NEON_COLORS });
 
         // Tab switching
         document.querySelectorAll('#main-view .tab-btn').forEach(function(btn) {

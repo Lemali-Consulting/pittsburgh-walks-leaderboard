@@ -34,6 +34,7 @@
   STATUS_TEXT[C.PHASE.final] = 'FINAL';
 
   var records = [];
+  var groupRecords = [];
   var colors = [];
   var activeBoard = null;
 
@@ -45,6 +46,7 @@
 
   function init(opts) {
     records = opts.records;
+    groupRecords = opts.groupRecords;
     colors = opts.colors;
 
     if (!C.isCompetitionViewVisible(now())) return;
@@ -52,6 +54,7 @@
     document.getElementById('promo-banner').hidden = false;
     configureBoardTabs();
     renderMonthStats();
+    renderGoalProgress();
 
     window.addEventListener('hashchange', syncViewToHash);
     syncViewToHash();
@@ -86,12 +89,36 @@
     renderBoard(BOARDS[key]);
   }
 
+  // The survey count includes group-account surveys so it moves with the goal
+  // bar; the player count stays individuals-only, matching the prize boards.
   function renderMonthStats() {
     var octoberRecords = records.filter(function(r) { return C.inWindow(C.WINDOWS.october, r.timestamp); });
+    var octoberSurveys = C.surveyCount({ records: records.concat(groupRecords), window: C.WINDOWS.october });
     var players = {};
     octoberRecords.forEach(function(r) { players[r.user] = true; });
-    document.getElementById('comp-stat-surveys').textContent = octoberRecords.length.toLocaleString();
+    document.getElementById('comp-stat-surveys').textContent = octoberSurveys.toLocaleString();
     document.getElementById('comp-stat-players').textContent = Object.keys(players).length.toLocaleString();
+  }
+
+  function renderGoalProgress() {
+    var goal = C.SURVEY_GOAL;
+    // Group-account surveys count toward the goal even though they aren't ranked.
+    var progress = C.goalProgress({ records: records.concat(groupRecords), goal: goal });
+
+    document.getElementById('goal-target').textContent = goal.toLocaleString();
+    document.getElementById('goal-target-short').textContent = goal.toLocaleString();
+    document.getElementById('goal-reached').textContent = progress.reached.toLocaleString();
+    document.getElementById('goal-remaining').textContent = progress.remaining > 0
+      ? progress.remaining.toLocaleString() + ' TO GO'
+      : 'GOAL REACHED!';
+
+    var bar = document.getElementById('goal-bar');
+    bar.setAttribute('aria-valuemax', String(goal));
+    bar.setAttribute('aria-valuenow', String(Math.min(progress.reached, goal)));
+    // Set the width on the next frame so the fill animates in from empty.
+    requestAnimationFrame(function() {
+      document.getElementById('goal-fill').style.width = (progress.fraction * 100) + '%';
+    });
   }
 
   function renderBoard(cfg) {

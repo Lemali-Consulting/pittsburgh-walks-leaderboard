@@ -28,6 +28,9 @@
   // then drop the view and its entry link from the main leaderboard.
   var COMPETITION_VIEW_RETIRES = Date.parse('2026-11-15T00:00:00-05:00');
 
+  // All-time survey total the October push aims to reach by the end of the month.
+  var SURVEY_GOAL = 8000;
+
   var PRIZE = Object.freeze({
     visa50: '$50 VISA',
     visa20: '$20 VISA',
@@ -84,6 +87,17 @@
     return ranked;
   }
 
+  // Counts every survey logged before October closes, including undated legacy
+  // rows (timestamp 0), since the goal is the project's running total.
+  function goalProgress(opts) {
+    var reached = opts.records.filter(function(r) { return r.timestamp < WINDOWS.october.end; }).length;
+    return {
+      reached: reached,
+      remaining: Math.max(opts.goal - reached, 0),
+      fraction: Math.min(reached / opts.goal, 1)
+    };
+  }
+
   function prizeFor(opts) {
     return PRIZES_BY_RANK[opts.board][opts.rank - 1] || null;
   }
@@ -93,12 +107,14 @@
     BOARD: BOARD,
     WINDOWS: WINDOWS,
     PRIZE: PRIZE,
+    SURVEY_GOAL: SURVEY_GOAL,
     inWindow: inWindow,
     phaseOf: phaseOf,
     isWeekTabVisible: isWeekTabVisible,
     isCompetitionViewVisible: isCompetitionViewVisible,
     surveyCount: surveyCount,
     topCollectors: topCollectors,
+    goalProgress: goalProgress,
     prizeFor: prizeFor
   };
 

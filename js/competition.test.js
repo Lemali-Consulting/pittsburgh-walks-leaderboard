@@ -98,3 +98,28 @@ test('competition view stays up through final results, then retires', () => {
   assert.ok(C.isCompetitionViewVisible(at('2026-11-14T23:59:59-05:00')));
   assert.ok(!C.isCompetitionViewVisible(at('2026-11-15T00:00:00-05:00')));
 });
+
+test('goalProgress counts every survey logged before October ends toward the total goal', () => {
+  const records = [
+    record('a', '2026-03-01T12:00:00-05:00'),
+    record('b', '2026-10-15T12:00:00-04:00'),
+    { user: 'c', timestamp: 0 }, // legacy row with no date still counts toward the total
+    record('d', '2026-11-01T00:00:00-04:00') // after the deadline
+  ];
+  const p = C.goalProgress({ records: records, goal: 10 });
+  assert.strictEqual(p.reached, 3);
+  assert.strictEqual(p.remaining, 7);
+  assert.strictEqual(p.fraction, 0.3);
+});
+
+test('goalProgress stops at the goal once it is passed', () => {
+  const records = Array.from({ length: 12 }, () => record('a', '2026-10-02T12:00:00-04:00'));
+  const p = C.goalProgress({ records: records, goal: 10 });
+  assert.strictEqual(p.reached, 12);
+  assert.strictEqual(p.remaining, 0);
+  assert.strictEqual(p.fraction, 1);
+});
+
+test('the survey goal is 8,000 total', () => {
+  assert.strictEqual(C.SURVEY_GOAL, 8000);
+});
