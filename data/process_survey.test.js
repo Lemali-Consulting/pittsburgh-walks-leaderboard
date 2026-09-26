@@ -47,13 +47,13 @@ try {
 
   const usernames = dataLines.map(line => line.split(',')[0]);
 
-  console.assert(dataLines.length === 3, `Expected 3 rows, got ${dataLines.length}`);
-  console.assert(usernames.includes('Alice'), 'Alice should be present');
-  console.assert(usernames.includes('Bob'), 'Bob should be present');
-  console.assert(usernames.includes('Sal8'), 'Sal8 (legit username starting with S) should be present');
-  console.assert(!usernames.some(u => u.toLowerCase().includes('328')), 'No s-ID variants should be present');
-  console.assert(!usernames.some(u => u.toLowerCase().includes('322')), 'No s-ID variants should be present');
-  console.assert(!usernames.some(u => u.toLowerCase().startsWith('s-')), 'No hyphen s-IDs should be present');
+  assert.strictEqual(dataLines.length, 3, `Expected 3 rows, got ${dataLines.length}`);
+  assert.ok(usernames.includes('Alice'), 'Alice should be present');
+  assert.ok(usernames.includes('Bob'), 'Bob should be present');
+  assert.ok(usernames.includes('Sal8'), 'Sal8 (legit username starting with S) should be present');
+  assert.ok(!usernames.some(u => u.toLowerCase().includes('328')), 'No s-ID variants should be present');
+  assert.ok(!usernames.some(u => u.toLowerCase().includes('322')), 'No s-ID variants should be present');
+  assert.ok(!usernames.some(u => u.toLowerCase().startsWith('s-')), 'No hyphen s-IDs should be present');
 
   console.log('PASS: s-ID usernames (all variants) are filtered out');
 } catch (e) {
