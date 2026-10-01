@@ -38,6 +38,7 @@ try {
     's\u2014328sb,emdash@example.com,Hill District,1700000000000',
     'S322ad,nodash@example.com,Greenfield,1700000000000',
     'S-328SB,upper@example.com,North Oakland,1700000000000',
+    'S516-ng,latedash@example.com,Greenfield,1700000000000',
     'Sal8,legit-s-name@example.com,Shadyside,1700000000000',
   ].join('\n');
 
@@ -53,6 +54,7 @@ try {
   assert.ok(usernames.includes('Sal8'), 'Sal8 (legit username starting with S) should be present');
   assert.ok(!usernames.some(u => u.toLowerCase().includes('328')), 'No s-ID variants should be present');
   assert.ok(!usernames.some(u => u.toLowerCase().includes('322')), 'No s-ID variants should be present');
+  assert.ok(!usernames.some(u => u.toLowerCase().includes('516')), 'Dash after the digits is still an s-ID');
   assert.ok(!usernames.some(u => u.toLowerCase().startsWith('s-')), 'No hyphen s-IDs should be present');
 
   console.log('PASS: s-ID usernames (all variants) are filtered out');
@@ -85,6 +87,52 @@ try {
   );
 
   console.log('PASS: s-ID surveys are written to the group-surveys file');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: "Test" account surveys are dropped from both outputs, like Training
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Test,tester@example.com,Oakland,1700000000001',
+    'TEST,tester2@example.com,Oakland,1700000000002',
+    'Alice,alice@example.com,Squirrel Hill,1700000000003',
+    'Testa,testa@example.com,Shadyside,1700000000004',
+  ].join('\n');
+
+  const output = runPipeline(input);
+  const usernames = output.trim().split('\n').slice(1).map(line => line.split(',')[0]);
+  const groupLines = fs.readFileSync(groupOutputPath, 'utf-8').trim().split('\n');
+
+  assert.deepStrictEqual(usernames, ['Alice', 'Testa'], 'Test rows removed; names merely starting with "Test" kept');
+  assert.strictEqual(groupLines.length, 1, 'Test rows must not land in the group file either');
+
+  console.log('PASS: Test-account surveys are excluded');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: any username marked as a training walk is dropped, not just "Training"
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Mindy - training walk,mindy@example.com,Oakland,1700000000001',
+    'Alice,alice@example.com,Squirrel Hill,1700000000002',
+  ].join('\n');
+
+  const output = runPipeline(input);
+  const usernames = output.trim().split('\n').slice(1).map(line => line.split(',')[0]);
+
+  assert.deepStrictEqual(usernames, ['Alice'], 'training-walk rows removed');
+
+  console.log('PASS: training-walk usernames are excluded');
 } catch (e) {
   console.error('FAIL:', e.message);
   process.exitCode = 1;

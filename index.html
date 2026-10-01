@@ -1110,6 +1110,7 @@
     </div>
   </div>
 
+  <script src="js/leaderboard.js"></script>
   <script src="js/competition.js"></script>
   <script src="js/competition-view.js"></script>
   <script>
@@ -1125,12 +1126,13 @@
     ];
 
     var allRecords = [];
-    var activeTab = 'overall';
+    var groupRecords = [];
+    var activeTab = Leaderboard.TAB.overall;
     var currentSorted = [];
     var listExpanded = false;
 
     var LEADERBOARD_DATA_URL = 'data/processed-survey.csv';
-    // Surveys from shared group accounts: counted toward the survey goal, never ranked.
+    // Surveys from shared group accounts: counted in survey totals, never ranked.
     var GROUP_SURVEYS_DATA_URL = 'data/group-surveys.csv';
 
     function fetchSurveyRecords(url) {
@@ -1164,14 +1166,14 @@
 
     Promise.all([
       fetchSurveyRecords(LEADERBOARD_DATA_URL),
-      // A missing group file only undercounts the goal; it must not take down the leaderboard.
+      // A missing group file only undercounts the totals; it must not take down the leaderboard.
       fetchSurveyRecords(GROUP_SURVEYS_DATA_URL).catch(function() { return []; })
     ])
       .then(function(results) {
         allRecords = results[0];
-        var groupRecords = results[1];
+        groupRecords = results[1];
 
-        renderLeaderboard('overall');
+        renderLeaderboard(activeTab);
         CompetitionView.init({ records: allRecords, groupRecords: groupRecords, colors: NEON_COLORS });
 
         // Tab switching
@@ -1254,35 +1256,29 @@
     }
 
     function renderLeaderboard(tab) {
-      var records = allRecords;
-
-      if (tab === 'month') {
-        var cutoff = Date.now() - (30 * 24 * 60 * 60 * 1000);
-        records = allRecords.filter(function(r) { return r.timestamp >= cutoff; });
-      }
+      var now = Date.now();
+      var records = Leaderboard.recordsForTab({ records: allRecords, tab: tab, now: now });
 
       // Reconstruct the ranking as it stood 7 days ago (same tab filter, but
       // counting only surveys submitted at least a week ago) so we can show
       // each user's up/down movement over the past week.
-      var refCutoff = Date.now() - (7 * 24 * 60 * 60 * 1000);
+      var refCutoff = now - (7 * 24 * 60 * 60 * 1000);
       var prevRankMap = rankMapFromRecords(records.filter(function(r) {
         return r.timestamp > 0 && r.timestamp <= refCutoff;
       }));
 
       var counts = {};
-      var total = 0;
 
       for (var i = 0; i < records.length; i++) {
         var user = records[i].user;
         counts[user] = (counts[user] || 0) + 1;
-        total++;
       }
 
       currentSorted = Object.entries(counts).sort(function(a, b) { return b[1] - a[1]; });
 
-      // Update stat counters
-      animateCounter(document.getElementById('stat-surveys'), total);
-      animateCounter(document.getElementById('stat-contributors'), currentSorted.length);
+      var totals = Leaderboard.statTotals({ rankedRecords: allRecords, groupRecords: groupRecords, tab: tab, now: now });
+      animateCounter(document.getElementById('stat-surveys'), totals.surveys);
+      animateCounter(document.getElementById('stat-contributors'), totals.players);
 
       // Build rows (all of them; rows beyond 25 start hidden)
       var html = '';

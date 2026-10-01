@@ -1,8 +1,11 @@
 /**
  * Data pipeline to process raw-survey.csv:
- * - Remove rows with "Training" username (case-insensitive)
- * - Move rows from shared group accounts (s<sep?><digits><letters> pattern,
- *   where sep may be '-', em-dash, or absent — e.g. s-328sb, s—328sb, S322ad)
+ * - Remove practice rows (case-insensitive): a "Test" username, or any username
+ *   containing the word "training" (e.g. "Training", "Mindy - training walk").
+ *   They are not real surveys, so they count nowhere
+ * - Move rows from shared group accounts (s<sep?><digits><sep?><letters>
+ *   pattern, where sep may be '-', em-dash, or absent — e.g. s-328sb, s—328sb,
+ *   S322ad, S516-ng)
  *   out of the leaderboard and into group-surveys.csv: they are real surveys
  *   from group activities, so they count toward the survey goal, but a shared
  *   account doesn't compete on the leaderboard
@@ -78,11 +81,14 @@ function toCSV(headers, rows) {
   return [headerLine, ...dataLines].join('\n');
 }
 
-const GROUP_ACCOUNT_PATTERN = /^s\W*\d+\w+$/i;
+const GROUP_ACCOUNT_PATTERN = /^s\W*\d+\W*\w+$/i;
 const EMAIL_COLUMN = 'Email address';
+const TEST_USERNAME = 'test';
+const TRAINING_WORD_PATTERN = /\btraining\b/i;
 
-function isTrainingRow(row) {
-  return (row['Username'] || '').trim().toLowerCase() === 'training';
+function isPracticeRow(row) {
+  const username = (row['Username'] || '').trim();
+  return username.toLowerCase() === TEST_USERNAME || TRAINING_WORD_PATTERN.test(username);
 }
 
 function isGroupAccountRow(row) {
@@ -94,8 +100,8 @@ function processSurvey({ inputPath, outputPath, groupOutputPath }) {
   const content = fs.readFileSync(inputPath, 'utf-8').replace(/^\uFEFF/, ''); // Remove BOM
   const { headers, rows: allRows } = parseCSV(content);
 
-  const surveyRows = allRows.filter(row => !isTrainingRow(row));
-  const trainingRowsRemoved = allRows.length - surveyRows.length;
+  const surveyRows = allRows.filter(row => !isPracticeRow(row));
+  const practiceRowsRemoved = allRows.length - surveyRows.length;
   const groupRows = surveyRows.filter(isGroupAccountRow);
   const rows = surveyRows.filter(row => !isGroupAccountRow(row));
 
@@ -134,7 +140,7 @@ function processSurvey({ inputPath, outputPath, groupOutputPath }) {
 
   return {
     totalRows: allRows.length,
-    trainingRowsRemoved,
+    practiceRowsRemoved,
     groupRowsSeparated: groupRows.length,
     rowsProcessed: rows.length,
     uniqueEmails: emailToUsername.size,
@@ -151,7 +157,7 @@ const groupOutputFile = process.env.SURVEY_GROUP_OUTPUT || path.join(scriptDir, 
 const stats = processSurvey({ inputPath: inputFile, outputPath: outputFile, groupOutputPath: groupOutputFile });
 
 console.log(`Total rows in input: ${stats.totalRows}`);
-console.log(`Removed ${stats.trainingRowsRemoved} Training rows`);
+console.log(`Removed ${stats.practiceRowsRemoved} Training/Test rows`);
 console.log(`Moved ${stats.groupRowsSeparated} group-account rows to the group surveys file`);
 console.log(`Processed ${stats.rowsProcessed} rows`);
 console.log(`Found ${stats.uniqueEmails} unique emails`);
