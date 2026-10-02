@@ -9,8 +9,10 @@ const outputPath = path.join(__dirname, 'test-output.csv');
 const groupOutputPath = path.join(__dirname, 'test-group-output.csv');
 const rosterPath = path.join(__dirname, 'test-roster.csv');
 const groupAccountsPath = path.join(__dirname, 'test-group-accounts.csv');
+const aliasesPath = path.join(__dirname, 'test-aliases.csv');
 const ROSTER_HEADER = 'Username,Email address';
 const GROUP_ACCOUNTS_HEADER = 'Username';
+const ALIASES_HEADER = 'Registered Username,Alternate Username,Email address';
 
 const DEFAULT_ROSTER = [
   'Alice,alice@example.com',
@@ -27,13 +29,15 @@ function pipelineEnv() {
     SURVEY_GROUP_OUTPUT: groupOutputPath,
     ROSTER_INPUT: rosterPath,
     GROUP_ACCOUNTS_INPUT: groupAccountsPath,
+    ALIASES_INPUT: aliasesPath,
   };
 }
 
-function runPipeline(csvContent, rosterRows = DEFAULT_ROSTER, groupAccountRows = []) {
+function runPipeline(csvContent, rosterRows = DEFAULT_ROSTER, groupAccountRows = [], aliasRows = []) {
   fs.writeFileSync(inputPath, csvContent, 'utf-8');
   fs.writeFileSync(rosterPath, [ROSTER_HEADER, ...rosterRows].join('\n'), 'utf-8');
   fs.writeFileSync(groupAccountsPath, [GROUP_ACCOUNTS_HEADER, ...groupAccountRows].join('\n'), 'utf-8');
+  fs.writeFileSync(aliasesPath, [ALIASES_HEADER, ...aliasRows].join('\n'), 'utf-8');
   execSync(`node ${scriptPath}`, { env: pipelineEnv() });
   return fs.readFileSync(outputPath, 'utf-8');
 }
@@ -43,7 +47,7 @@ function outputUsernames(output) {
 }
 
 function cleanup() {
-  for (const f of [inputPath, outputPath, groupOutputPath, rosterPath, groupAccountsPath]) {
+  for (const f of [inputPath, outputPath, groupOutputPath, rosterPath, groupAccountsPath, aliasesPath]) {
     try { fs.unlinkSync(f); } catch {}
   }
 }
@@ -362,6 +366,7 @@ try {
 try {
   fs.writeFileSync(inputPath, 'Username,Email address,Neighborhood,CreationDate\nAlice,alice@example.com,Oakland,1', 'utf-8');
   fs.writeFileSync(rosterPath, ROSTER_HEADER, 'utf-8');
+  fs.writeFileSync(aliasesPath, ALIASES_HEADER, 'utf-8');
   const env = pipelineEnv();
   delete env.GROUP_ACCOUNTS_INPUT;
 
@@ -372,6 +377,129 @@ try {
   );
 
   console.log('PASS: missing GROUP_ACCOUNTS_INPUT fails the build');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: an alternate username typed from an unregistered email is credited to the registered spelling
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Zel2,other@example.com,Oakland,1700000000001',
+  ].join('\n');
+
+  const output = runPipeline(input, ['zell2,zell2@example.com'], [], ['zell2,Zel2,']);
+
+  assert.deepStrictEqual(outputUsernames(output), ['zell2'], 'credited to the roster spelling');
+
+  console.log('PASS: alternate username resolves to the registered username');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: an alternate email credits the registered username whatever name was typed
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Whatever,Second@Example.com ,Oakland,1700000000001',
+  ].join('\n');
+
+  const output = runPipeline(input, ['zell2,zell2@example.com'], [], ['ZELL2,,second@example.com']);
+
+  assert.deepStrictEqual(outputUsernames(output), ['zell2'], 'registered name matched case-insensitively');
+
+  console.log('PASS: alternate email resolves to the registered username');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: an alias for a username that is not on the roster cannot admit anyone
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Ghosty,ghost2@example.com,Oakland,1700000000001',
+    'Ghost,ghost@example.com,Oakland,1700000000002',
+  ].join('\n');
+
+  const output = runPipeline(input, DEFAULT_ROSTER, [], ['Ghost,Ghosty,ghost2@example.com']);
+
+  assert.deepStrictEqual(outputUsernames(output), [], 'unregistered rows stay dropped');
+
+  console.log('PASS: aliases for unregistered usernames are ignored');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: an alias can't take over an email or username that belongs to a registered volunteer
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Whoever,bob@example.com,Oakland,1700000000001',
+    'Bob,unknown@example.com,Oakland,1700000000002',
+  ].join('\n');
+
+  const output = runPipeline(input, DEFAULT_ROSTER, [], ['Alice,Bob,bob@example.com']);
+
+  assert.deepStrictEqual(outputUsernames(output), ['Bob', 'Bob'], 'registration spellings and emails always win');
+
+  console.log('PASS: aliases cannot hijack registered emails or usernames');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: among aliases the first occurrence of an email or username wins
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'Nick,x@example.com,Oakland,1700000000001',
+    'Other,nick@example.com,Oakland,1700000000002',
+  ].join('\n');
+
+  const output = runPipeline(input, DEFAULT_ROSTER, [], [
+    'Alice,Nick,x@example.com',
+    'Bob,Nick,nick@example.com',
+  ]);
+
+  assert.deepStrictEqual(outputUsernames(output), ['Alice', 'Bob'], 'first alias keeps Nick and x@; second alias adds only its new email');
+
+  console.log('PASS: first alias occurrence wins');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: without ALIASES_INPUT the script fails rather than silently dropping alternate logins
+try {
+  fs.writeFileSync(inputPath, 'Username,Email address,Neighborhood,CreationDate\nAlice,alice@example.com,Oakland,1', 'utf-8');
+  fs.writeFileSync(rosterPath, ROSTER_HEADER, 'utf-8');
+  fs.writeFileSync(groupAccountsPath, GROUP_ACCOUNTS_HEADER, 'utf-8');
+  const env = pipelineEnv();
+  delete env.ALIASES_INPUT;
+
+  assert.throws(
+    () => execSync(`node ${scriptPath}`, { env, stdio: 'pipe' }),
+    err => err.status !== 0 && /ALIASES_INPUT/.test(String(err.stderr)),
+    'script must exit non-zero and name ALIASES_INPUT'
+  );
+
+  console.log('PASS: missing ALIASES_INPUT fails the build');
 } catch (e) {
   console.error('FAIL:', e.message);
   process.exitCode = 1;

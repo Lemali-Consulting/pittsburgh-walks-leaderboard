@@ -10,7 +10,10 @@ Build script: fetches survey data from ArcGIS and runs the processing pipeline.
 4. Fetches the official group-event usernames (username column only; leader
    emails and phone numbers never leave the extraction) from the sheet's
    "Group Event Information" tab into a temp file outside the repo
-5. Runs process_survey.js to generate data/processed-survey.csv (leaderboard)
+5. Fetches the "Alternate Logins" tab (extra usernames/emails that belong to a
+   registered volunteer; those three columns only) into a temp file outside
+   the repo, since it holds emails
+6. Runs process_survey.js to generate data/processed-survey.csv (leaderboard)
    and data/group-surveys.csv (shared group accounts, counted toward the goal)
 """
 
@@ -45,6 +48,12 @@ GROUP_TAB_NAME = "Group Event Information"
 GROUP_USERNAME_HEADER = "Event Username"
 GROUP_ACCOUNTS_ENV_VAR = "GROUP_ACCOUNTS_INPUT"
 GROUP_ACCOUNTS_CSV_HEADER = ["Username"]
+ALIASES_TAB_NAME = "Alternate Logins"
+ALIASES_REGISTERED_HEADER = "Registered Username"
+ALIASES_USERNAME_HEADER = "Alternate Username"
+ALIASES_EMAIL_HEADER = "Alternate Email"
+ALIASES_ENV_VAR = "ALIASES_INPUT"
+ALIASES_CSV_HEADER = ["Registered Username", "Alternate Username", "Email address"]
 
 
 def fetch_all_features():
@@ -144,6 +153,40 @@ def extract_group_usernames(values):
     return usernames
 
 
+def extract_alternate_logins(values):
+    """Return [(registered_username, alternate_username, alternate_email)]; no other column leaves here."""
+    # Exact match so note rows above the header are never mistaken for it
+    header_index = next(
+        (i for i, row in enumerate(values)
+         if any(cell.strip() == ALIASES_REGISTERED_HEADER for cell in row)),
+        None,
+    )
+    if header_index is None:
+        raise ValueError(
+            f"No header row containing {ALIASES_REGISTERED_HEADER!r} found in alternate logins tab"
+        )
+
+    header = [cell.strip() for cell in values[header_index]]
+    columns = []
+    for label in (ALIASES_REGISTERED_HEADER, ALIASES_USERNAME_HEADER, ALIASES_EMAIL_HEADER):
+        if label not in header:
+            raise ValueError(f"No {label!r} column in alternate logins tab")
+        columns.append(header.index(label))
+    registered_col, username_col, email_col = columns
+
+    def cell(row, col):
+        return row[col].strip() if col < len(row) else ""
+
+    logins = []
+    for row in values[header_index + 1:]:
+        registered = cell(row, registered_col)
+        username = cell(row, username_col)
+        email = cell(row, email_col)
+        if registered and (username or email):
+            logins.append((registered, username, email))
+    return logins
+
+
 def fetch_sheet_values(tab_name):
     # Imported here so build.py (and its tests) import without google-auth installed
     from google.oauth2 import service_account
@@ -180,6 +223,13 @@ def write_group_accounts_csv(usernames, path):
         writer.writerows([username] for username in usernames)
 
 
+def write_alternate_logins_csv(logins, path):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(ALIASES_CSV_HEADER)
+        writer.writerows(logins)
+
+
 @contextlib.contextmanager
 def private_temp_csv():
     """Yield a temp CSV path outside the repo (which is published), deleted afterwards."""
@@ -206,12 +256,17 @@ def main():
     group_usernames = extract_group_usernames(fetch_sheet_values(GROUP_TAB_NAME))
     print(f"Found {len(group_usernames)} group usernames")
 
-    # The survey and roster files hold volunteer emails, so none of these may land in the published repo
+    print("Fetching alternate logins from Google Sheets...")
+    alternate_logins = extract_alternate_logins(fetch_sheet_values(ALIASES_TAB_NAME))
+    print(f"Found {len(alternate_logins)} alternate logins")
+
+    # The survey, roster and alternate-login files hold volunteer emails, so none of these may land in the published repo
     with private_temp_csv() as raw_path, private_temp_csv() as roster_path, \
-            private_temp_csv() as group_path:
+            private_temp_csv() as group_path, private_temp_csv() as aliases_path:
         write_raw_csv(features, raw_path)
         write_roster_csv(pairs, roster_path)
         write_group_accounts_csv(group_usernames, group_path)
+        write_alternate_logins_csv(alternate_logins, aliases_path)
         print("Running process_survey.js...")
         subprocess.run(
             ["node", "data/process_survey.js"],
@@ -221,6 +276,7 @@ def main():
                 SURVEY_INPUT_ENV_VAR: raw_path,
                 ROSTER_ENV_VAR: roster_path,
                 GROUP_ACCOUNTS_ENV_VAR: group_path,
+                ALIASES_ENV_VAR: aliases_path,
             },
         )
 

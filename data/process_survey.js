@@ -24,6 +24,15 @@
  *   Email wins over username. Matching is trimmed and case-insensitive; for a
  *   duplicated roster email or username the first roster row wins. Group
  *   accounts are not roster-filtered
+ * - Alternate logins (CSV at ALIASES_INPUT, header "Registered Username,
+ *   Alternate Username,Email address", from the Alternate Logins sheet) let a
+ *   registered volunteer who submits from a second email and/or a variant
+ *   spelling still be credited. Each alias is folded into the roster lookups
+ *   under the roster's spelling of its registered username, so the order above
+ *   is unchanged. An alias whose registered username is not on the roster is
+ *   skipped with a warning (the tab cannot admit unregistered people), and an
+ *   alias never overwrites an email or username already known from the roster
+ *   or an earlier alias
  * - Output cleaned data to processed-survey.csv
  * - Emails are stripped from both outputs so they are never served publicly
  */
@@ -98,6 +107,9 @@ const EMAIL_COLUMN = 'Email address';
 const USERNAME_COLUMN = 'Username';
 const ROSTER_ENV_VAR = 'ROSTER_INPUT';
 const GROUP_ACCOUNTS_ENV_VAR = 'GROUP_ACCOUNTS_INPUT';
+const ALIASES_ENV_VAR = 'ALIASES_INPUT';
+const ALIAS_REGISTERED_COLUMN = 'Registered Username';
+const ALIAS_USERNAME_COLUMN = 'Alternate Username';
 const RESOLVED_VIA_EMAIL = 'email';
 const RESOLVED_VIA_USERNAME = 'username';
 const TEST_USERNAME = 'test';
@@ -160,6 +172,49 @@ function loadRoster(rosterPath) {
   return { byEmail, byUsername };
 }
 
+// Returns the alias rows as { registered, username, email } (all trimmed).
+function loadAliases(aliasesPath) {
+  if (!aliasesPath) {
+    throw new Error(`${ALIASES_ENV_VAR} is not set: cannot credit volunteers who log in under alternate names or emails`);
+  }
+  if (!fs.existsSync(aliasesPath)) {
+    throw new Error(`${ALIASES_ENV_VAR} file not found: ${aliasesPath}`);
+  }
+
+  const content = fs.readFileSync(aliasesPath, 'utf-8').replace(/^\uFEFF/, '');
+  const { rows } = parseCSV(content);
+  return rows.map(row => ({
+    registered: (row[ALIAS_REGISTERED_COLUMN] || '').trim(),
+    username: (row[ALIAS_USERNAME_COLUMN] || '').trim(),
+    email: normalize(row[EMAIL_COLUMN]),
+  }));
+}
+
+// Adds each alias's alternate email/username to the roster lookups, valued with
+// the roster's spelling of the registered username. Existing entries always win.
+// Returns { applied, skippedRegisteredUsernames } (skipped: not on the roster).
+function applyAliases({ roster, aliases }) {
+  let applied = 0;
+  const skippedRegisteredUsernames = [];
+
+  for (const alias of aliases) {
+    if (!alias.registered) continue;
+
+    const rosterUsername = roster.byUsername.get(alias.registered.toLowerCase());
+    if (!rosterUsername) {
+      skippedRegisteredUsernames.push(alias.registered);
+      continue;
+    }
+
+    if (alias.email && !roster.byEmail.has(alias.email)) roster.byEmail.set(alias.email, rosterUsername);
+    const usernameKey = alias.username.toLowerCase();
+    if (usernameKey && !roster.byUsername.has(usernameKey)) roster.byUsername.set(usernameKey, rosterUsername);
+    applied++;
+  }
+
+  return { applied, skippedRegisteredUsernames };
+}
+
 // Returns { username, via } for a registered volunteer, or null if unregistered.
 function resolveVolunteer({ row, roster }) {
   const byEmail = roster.byEmail.get(normalize(row[EMAIL_COLUMN]));
@@ -171,8 +226,9 @@ function resolveVolunteer({ row, roster }) {
   return null;
 }
 
-function processSurvey({ inputPath, outputPath, groupOutputPath, rosterPath, groupAccountsPath }) {
+function processSurvey({ inputPath, outputPath, groupOutputPath, rosterPath, groupAccountsPath, aliasesPath }) {
   const roster = loadRoster(rosterPath);
+  const aliasStats = applyAliases({ roster, aliases: loadAliases(aliasesPath) });
   const groupUsernames = loadGroupUsernames(groupAccountsPath);
 
   // Read and parse input
@@ -217,6 +273,8 @@ function processSurvey({ inputPath, outputPath, groupOutputPath, rosterPath, gro
     totalRows: allRows.length,
     practiceRowsRemoved,
     groupRowsSeparated: groupRows.length,
+    aliasesApplied: aliasStats.applied,
+    skippedAliasUsernames: aliasStats.skippedRegisteredUsernames,
     rowsProcessed: rows.length,
     resolvedViaEmail,
     resolvedViaUsername,
@@ -233,6 +291,7 @@ const groupOutputFile = process.env.SURVEY_GROUP_OUTPUT || path.join(scriptDir, 
 
 const rosterFile = process.env[ROSTER_ENV_VAR];
 const groupAccountsFile = process.env[GROUP_ACCOUNTS_ENV_VAR];
+const aliasesFile = process.env[ALIASES_ENV_VAR];
 
 const stats = processSurvey({
   inputPath: inputFile,
@@ -240,11 +299,16 @@ const stats = processSurvey({
   groupOutputPath: groupOutputFile,
   rosterPath: rosterFile,
   groupAccountsPath: groupAccountsFile,
+  aliasesPath: aliasesFile,
 });
 
 console.log(`Total rows in input: ${stats.totalRows}`);
 console.log(`Removed ${stats.practiceRowsRemoved} Training/Test rows`);
 console.log(`Moved ${stats.groupRowsSeparated} group-account rows to the group surveys file`);
+console.log(`Applied ${stats.aliasesApplied} alternate logins`);
+for (const username of stats.skippedAliasUsernames) {
+  console.log(`  skipped alternate login: ${username} is not on the roster`);
+}
 console.log(`Processed ${stats.rowsProcessed} rows`);
 console.log(`Resolved ${stats.resolvedViaEmail} rows via registration email`);
 console.log(`Resolved ${stats.resolvedViaUsername} rows via typed username`);
