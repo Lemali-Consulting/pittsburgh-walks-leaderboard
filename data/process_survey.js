@@ -3,12 +3,17 @@
  * - Remove practice rows (case-insensitive): a "Test" username, or any username
  *   containing the word "training" (e.g. "Training", "Mindy - training walk").
  *   They are not real surveys, so they count nowhere
- * - Move rows from shared group accounts (s<sep?><digits><sep?><letters>
- *   pattern, where sep may be '-', em-dash, or absent — e.g. s-328sb, s—328sb,
- *   S322ad, S516-ng)
- *   out of the leaderboard and into group-surveys.csv: they are real surveys
- *   from group activities, so they count toward the survey goal, but a shared
- *   account doesn't compete on the leaderboard
+ * - Move rows from shared group accounts out of the leaderboard and into
+ *   group-surveys.csv: they are real surveys from group activities, so they
+ *   count toward the survey goal, but a shared account doesn't compete on the
+ *   leaderboard. A group account is a username listed in GROUP_ACCOUNTS_INPUT
+ *   (CSV, header "Username", from the Group Event Information sheet; matched
+ *   trimmed and case-insensitively), or one matching the
+ *   s<sep?><digits><sep?><letters> pattern (sep may be '-', em-dash, or absent
+ *   — e.g. s-328sb, s—328sb, S322ad, S516-ng), which catches s- accounts a
+ *   leader forgot to list. Group detection runs before roster resolution, so a
+ *   listed group username goes to the group file even if it is also on the
+ *   roster, and group rows keep the username as typed
  * - Only registered volunteers appear on the leaderboard. The roster (CSV at
  *   ROSTER_INPUT, header "Username,Email address") is the source of truth:
  *   1. a row whose email matches a roster email is credited to that roster
@@ -92,6 +97,7 @@ const GROUP_ACCOUNT_PATTERN = /^s\W*\d+\W*\w+$/i;
 const EMAIL_COLUMN = 'Email address';
 const USERNAME_COLUMN = 'Username';
 const ROSTER_ENV_VAR = 'ROSTER_INPUT';
+const GROUP_ACCOUNTS_ENV_VAR = 'GROUP_ACCOUNTS_INPUT';
 const RESOLVED_VIA_EMAIL = 'email';
 const RESOLVED_VIA_USERNAME = 'username';
 const TEST_USERNAME = 'test';
@@ -102,12 +108,27 @@ function isPracticeRow(row) {
   return username.toLowerCase() === TEST_USERNAME || TRAINING_WORD_PATTERN.test(username);
 }
 
-function isGroupAccountRow(row) {
-  return GROUP_ACCOUNT_PATTERN.test((row[USERNAME_COLUMN] || '').trim());
+function isGroupAccountRow({ row, groupUsernames }) {
+  const username = (row[USERNAME_COLUMN] || '').trim();
+  return groupUsernames.has(username.toLowerCase()) || GROUP_ACCOUNT_PATTERN.test(username);
 }
 
 function normalize(value) {
   return (value || '').trim().toLowerCase();
+}
+
+// Returns the lowercased set of officially listed group usernames.
+function loadGroupUsernames(groupAccountsPath) {
+  if (!groupAccountsPath) {
+    throw new Error(`${GROUP_ACCOUNTS_ENV_VAR} is not set: cannot tell group surveys from volunteer surveys`);
+  }
+  if (!fs.existsSync(groupAccountsPath)) {
+    throw new Error(`${GROUP_ACCOUNTS_ENV_VAR} file not found: ${groupAccountsPath}`);
+  }
+
+  const content = fs.readFileSync(groupAccountsPath, 'utf-8').replace(/^\uFEFF/, '');
+  const { rows } = parseCSV(content);
+  return new Set(rows.map(row => normalize(row[USERNAME_COLUMN])).filter(Boolean));
 }
 
 // Builds email -> username and username -> username lookups (both keyed
@@ -150,8 +171,9 @@ function resolveVolunteer({ row, roster }) {
   return null;
 }
 
-function processSurvey({ inputPath, outputPath, groupOutputPath, rosterPath }) {
+function processSurvey({ inputPath, outputPath, groupOutputPath, rosterPath, groupAccountsPath }) {
   const roster = loadRoster(rosterPath);
+  const groupUsernames = loadGroupUsernames(groupAccountsPath);
 
   // Read and parse input
   const content = fs.readFileSync(inputPath, 'utf-8').replace(/^\uFEFF/, ''); // Remove BOM
@@ -159,8 +181,8 @@ function processSurvey({ inputPath, outputPath, groupOutputPath, rosterPath }) {
 
   const surveyRows = allRows.filter(row => !isPracticeRow(row));
   const practiceRowsRemoved = allRows.length - surveyRows.length;
-  const groupRows = surveyRows.filter(isGroupAccountRow);
-  const candidateRows = surveyRows.filter(row => !isGroupAccountRow(row));
+  const groupRows = surveyRows.filter(row => isGroupAccountRow({ row, groupUsernames }));
+  const candidateRows = surveyRows.filter(row => !isGroupAccountRow({ row, groupUsernames }));
 
   // Credit each row to its roster volunteer; tally the ones that match nobody
   const rows = [];
@@ -210,12 +232,14 @@ const outputFile = process.env.SURVEY_OUTPUT || path.join(scriptDir, 'processed-
 const groupOutputFile = process.env.SURVEY_GROUP_OUTPUT || path.join(scriptDir, 'group-surveys.csv');
 
 const rosterFile = process.env[ROSTER_ENV_VAR];
+const groupAccountsFile = process.env[GROUP_ACCOUNTS_ENV_VAR];
 
 const stats = processSurvey({
   inputPath: inputFile,
   outputPath: outputFile,
   groupOutputPath: groupOutputFile,
   rosterPath: rosterFile,
+  groupAccountsPath: groupAccountsFile,
 });
 
 console.log(`Total rows in input: ${stats.totalRows}`);

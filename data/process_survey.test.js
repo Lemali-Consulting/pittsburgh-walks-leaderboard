@@ -8,7 +8,9 @@ const inputPath = path.join(__dirname, 'test-input.csv');
 const outputPath = path.join(__dirname, 'test-output.csv');
 const groupOutputPath = path.join(__dirname, 'test-group-output.csv');
 const rosterPath = path.join(__dirname, 'test-roster.csv');
+const groupAccountsPath = path.join(__dirname, 'test-group-accounts.csv');
 const ROSTER_HEADER = 'Username,Email address';
+const GROUP_ACCOUNTS_HEADER = 'Username';
 
 const DEFAULT_ROSTER = [
   'Alice,alice@example.com',
@@ -24,12 +26,14 @@ function pipelineEnv() {
     SURVEY_OUTPUT: outputPath,
     SURVEY_GROUP_OUTPUT: groupOutputPath,
     ROSTER_INPUT: rosterPath,
+    GROUP_ACCOUNTS_INPUT: groupAccountsPath,
   };
 }
 
-function runPipeline(csvContent, rosterRows = DEFAULT_ROSTER) {
+function runPipeline(csvContent, rosterRows = DEFAULT_ROSTER, groupAccountRows = []) {
   fs.writeFileSync(inputPath, csvContent, 'utf-8');
   fs.writeFileSync(rosterPath, [ROSTER_HEADER, ...rosterRows].join('\n'), 'utf-8');
+  fs.writeFileSync(groupAccountsPath, [GROUP_ACCOUNTS_HEADER, ...groupAccountRows].join('\n'), 'utf-8');
   execSync(`node ${scriptPath}`, { env: pipelineEnv() });
   return fs.readFileSync(outputPath, 'utf-8');
 }
@@ -39,7 +43,7 @@ function outputUsernames(output) {
 }
 
 function cleanup() {
-  for (const f of [inputPath, outputPath, groupOutputPath, rosterPath]) {
+  for (const f of [inputPath, outputPath, groupOutputPath, rosterPath, groupAccountsPath]) {
     try { fs.unlinkSync(f); } catch {}
   }
 }
@@ -298,6 +302,76 @@ try {
   );
 
   console.log('PASS: missing ROSTER_INPUT fails the build');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: a listed group username that doesn't fit the s-pattern goes to the group
+// file, even if it is also on the roster or typed with a registered volunteer's email
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    'ccac1,leader@example.com,Oakland,1700000000001',
+    'ccac1,alice@example.com,Oakland,1700000000002',
+    'Alice,alice@example.com,Squirrel Hill,1700000000003',
+  ].join('\n');
+
+  const output = runPipeline(input, [...DEFAULT_ROSTER, 'CCAC1,ccac1@example.com'], ['CCAC1']);
+  const groupLines = fs.readFileSync(groupOutputPath, 'utf-8').trim().split('\n');
+
+  assert.deepStrictEqual(outputUsernames(output), ['Alice'], 'listed group username stays off the leaderboard');
+  assert.deepStrictEqual(
+    groupLines.slice(1).map(line => line.split(',')[0]),
+    ['ccac1', 'ccac1'],
+    'listed group rows keep the username as typed'
+  );
+
+  console.log('PASS: listed non-pattern group usernames go to the group file');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: an unlisted s-pattern username is still a group account
+try {
+  const input = [
+    'Username,Email address,Neighborhood,CreationDate',
+    's-999zz,crew@example.com,Oakland,1700000000001',
+  ].join('\n');
+
+  const output = runPipeline(input, DEFAULT_ROSTER, ['CCAC1']);
+  const groupLines = fs.readFileSync(groupOutputPath, 'utf-8').trim().split('\n');
+
+  assert.deepStrictEqual(outputUsernames(output), [], 'not on the leaderboard');
+  assert.deepStrictEqual(groupLines.slice(1).map(line => line.split(',')[0]), ['s-999zz']);
+
+  console.log('PASS: unlisted s-pattern usernames remain group accounts');
+} catch (e) {
+  console.error('FAIL:', e.message);
+  process.exitCode = 1;
+} finally {
+  cleanup();
+}
+
+// Test: without GROUP_ACCOUNTS_INPUT the script fails rather than mis-sorting group surveys
+try {
+  fs.writeFileSync(inputPath, 'Username,Email address,Neighborhood,CreationDate\nAlice,alice@example.com,Oakland,1', 'utf-8');
+  fs.writeFileSync(rosterPath, ROSTER_HEADER, 'utf-8');
+  const env = pipelineEnv();
+  delete env.GROUP_ACCOUNTS_INPUT;
+
+  assert.throws(
+    () => execSync(`node ${scriptPath}`, { env, stdio: 'pipe' }),
+    err => err.status !== 0 && /GROUP_ACCOUNTS_INPUT/.test(String(err.stderr)),
+    'script must exit non-zero and name GROUP_ACCOUNTS_INPUT'
+  );
+
+  console.log('PASS: missing GROUP_ACCOUNTS_INPUT fails the build');
 } catch (e) {
   console.error('FAIL:', e.message);
   process.exitCode = 1;

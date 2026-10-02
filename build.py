@@ -7,7 +7,10 @@ Build script: fetches survey data from ArcGIS and runs the processing pipeline.
    download contains volunteer emails
 3. Fetches the private volunteer roster (username + email only) from Google
    Sheets into a temp file outside the repo, for the same reason
-4. Runs process_survey.js to generate data/processed-survey.csv (leaderboard)
+4. Fetches the official group-event usernames (username column only; leader
+   emails and phone numbers never leave the extraction) from the sheet's
+   "Group Event Information" tab into a temp file outside the repo
+5. Runs process_survey.js to generate data/processed-survey.csv (leaderboard)
    and data/group-surveys.csv (shared group accounts, counted toward the goal)
 """
 
@@ -38,6 +41,10 @@ SHEETS_READONLY_SCOPE = "https://www.googleapis.com/auth/spreadsheets.readonly"
 SERVICE_ACCOUNT_ENV_VAR = "GOOGLE_SERVICE_ACCOUNT_JSON"
 ROSTER_ENV_VAR = "ROSTER_INPUT"
 ROSTER_CSV_HEADER = ["Username", "Email address"]
+GROUP_TAB_NAME = "Group Event Information"
+GROUP_USERNAME_HEADER = "Event Username"
+GROUP_ACCOUNTS_ENV_VAR = "GROUP_ACCOUNTS_INPUT"
+GROUP_ACCOUNTS_CSV_HEADER = ["Username"]
 
 
 def fetch_all_features():
@@ -112,7 +119,32 @@ def extract_roster_pairs(values):
     return pairs
 
 
-def fetch_roster_values():
+def extract_group_usernames(values):
+    """Return the listed group usernames; no other column leaves here."""
+    # Exact match: the title row's "Event Username Format: ..." text must not count
+    header_index = next(
+        (i for i, row in enumerate(values)
+         if any(cell.strip() == GROUP_USERNAME_HEADER for cell in row)),
+        None,
+    )
+    if header_index is None:
+        raise ValueError(f"No header row containing {GROUP_USERNAME_HEADER!r} found in group tab")
+
+    username_col = next(
+        i for i, cell in enumerate(values[header_index]) if cell.strip() == GROUP_USERNAME_HEADER
+    )
+
+    usernames = []
+    seen = set()
+    for row in values[header_index + 1:]:
+        username = row[username_col].strip() if username_col < len(row) else ""
+        if username and username.lower() not in seen:
+            seen.add(username.lower())
+            usernames.append(username)
+    return usernames
+
+
+def fetch_sheet_values(tab_name):
     # Imported here so build.py (and its tests) import without google-auth installed
     from google.oauth2 import service_account
     from google.auth.transport.requests import AuthorizedSession
@@ -120,14 +152,14 @@ def fetch_roster_values():
     raw_key = os.environ.get(SERVICE_ACCOUNT_ENV_VAR)
     if not raw_key:
         raise RuntimeError(
-            f"{SERVICE_ACCOUNT_ENV_VAR} is not set: cannot fetch the volunteer roster"
+            f"{SERVICE_ACCOUNT_ENV_VAR} is not set: cannot fetch the Google Sheet"
         )
 
     credentials = service_account.Credentials.from_service_account_info(
         json.loads(raw_key), scopes=[SHEETS_READONLY_SCOPE]
     )
     url = SHEETS_VALUES_URL.format(
-        sheet_id=ROSTER_SHEET_ID, tab=urllib.parse.quote(ROSTER_TAB_NAME)
+        sheet_id=ROSTER_SHEET_ID, tab=urllib.parse.quote(tab_name)
     )
     resp = AuthorizedSession(credentials).get(url)
     resp.raise_for_status()
@@ -139,6 +171,13 @@ def write_roster_csv(pairs, path):
         writer = csv.writer(f)
         writer.writerow(ROSTER_CSV_HEADER)
         writer.writerows(pairs)
+
+
+def write_group_accounts_csv(usernames, path):
+    with open(path, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(GROUP_ACCOUNTS_CSV_HEADER)
+        writer.writerows([username] for username in usernames)
 
 
 @contextlib.contextmanager
@@ -160,18 +199,29 @@ def main():
     print(f"Total records fetched: {len(features)}")
 
     print("Fetching volunteer roster from Google Sheets...")
-    pairs = extract_roster_pairs(fetch_roster_values())
+    pairs = extract_roster_pairs(fetch_sheet_values(ROSTER_TAB_NAME))
     print(f"Roster has {len(pairs)} registered usernames")
 
-    # Both files hold volunteer emails, so neither may land in the published repo
-    with private_temp_csv() as raw_path, private_temp_csv() as roster_path:
+    print("Fetching group event usernames from Google Sheets...")
+    group_usernames = extract_group_usernames(fetch_sheet_values(GROUP_TAB_NAME))
+    print(f"Found {len(group_usernames)} group usernames")
+
+    # The survey and roster files hold volunteer emails, so none of these may land in the published repo
+    with private_temp_csv() as raw_path, private_temp_csv() as roster_path, \
+            private_temp_csv() as group_path:
         write_raw_csv(features, raw_path)
         write_roster_csv(pairs, roster_path)
+        write_group_accounts_csv(group_usernames, group_path)
         print("Running process_survey.js...")
         subprocess.run(
             ["node", "data/process_survey.js"],
             check=True,
-            env={**os.environ, SURVEY_INPUT_ENV_VAR: raw_path, ROSTER_ENV_VAR: roster_path},
+            env={
+                **os.environ,
+                SURVEY_INPUT_ENV_VAR: raw_path,
+                ROSTER_ENV_VAR: roster_path,
+                GROUP_ACCOUNTS_ENV_VAR: group_path,
+            },
         )
 
     print("Build complete.")

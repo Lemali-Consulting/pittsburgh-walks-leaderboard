@@ -20,6 +20,19 @@ SAMPLE_ROSTER_VALUES = [
     ["alice@example.com", "Alice"],
 ]
 
+TITLE_TEXT = "Event Username Format: s-MMDDxy (xy = event leader's initials)"
+GROUP_HEADER_ROW = [
+    "Timestamp", "Your name", "Organization", "Leader email",
+    "Leader phone number", "Location of event", "Date of event", "Event Username",
+]
+SAMPLE_GROUP_VALUES = [
+    [TITLE_TEXT, TITLE_TEXT, TITLE_TEXT],
+    [],
+    [],
+    GROUP_HEADER_ROW,
+    ["1/1/2025", "Lead", "CCAC", "lead@example.com", "555-0100", "Oakland", "1/2/2025", "CCAC1"],
+]
+
 
 class EmailFilesAreNotPublishedTest(unittest.TestCase):
     """The repo folder is published as-is, so email-bearing files must never land in it."""
@@ -27,21 +40,30 @@ class EmailFilesAreNotPublishedTest(unittest.TestCase):
     def run_build(self):
         seen = {}
 
+        def fake_fetch_sheet_values(tab_name):
+            return {
+                build.ROSTER_TAB_NAME: SAMPLE_ROSTER_VALUES,
+                build.GROUP_TAB_NAME: SAMPLE_GROUP_VALUES,
+            }[tab_name]
+
         def fake_run(cmd, check, env):
             raw_path = env[build.SURVEY_INPUT_ENV_VAR]
             seen["raw_path"] = raw_path
             seen["roster_path"] = env[build.ROSTER_ENV_VAR]
+            seen["group_path"] = env[build.GROUP_ACCOUNTS_ENV_VAR]
             with open(raw_path, encoding="utf-8") as f:
                 seen["raw_contents"] = f.read()
             with open(seen["roster_path"], encoding="utf-8") as f:
                 seen["roster_contents"] = f.read()
+            with open(seen["group_path"], encoding="utf-8") as f:
+                seen["group_contents"] = f.read()
 
         with tempfile.TemporaryDirectory() as repo_dir:
             cwd = os.getcwd()
             os.chdir(repo_dir)
             try:
                 with mock.patch.object(build, "fetch_all_features", return_value=SAMPLE_FEATURES), \
-                        mock.patch.object(build, "fetch_roster_values", return_value=SAMPLE_ROSTER_VALUES), \
+                        mock.patch.object(build, "fetch_sheet_values", side_effect=fake_fetch_sheet_values), \
                         mock.patch.object(build.subprocess, "run", side_effect=fake_run):
                     build.main()
                 published = [
@@ -61,15 +83,22 @@ class EmailFilesAreNotPublishedTest(unittest.TestCase):
         seen, _, _ = self.run_build()
         self.assertIn("alice@example.com", seen["roster_contents"])
 
-    def test_raw_survey_and_roster_are_written_outside_the_published_folder(self):
+    def test_group_usernames_are_handed_to_the_pipeline_without_leader_pii(self):
+        seen, _, _ = self.run_build()
+        self.assertEqual(seen["group_contents"].split(), ["Username", "CCAC1"])
+        for secret in ("lead@example.com", "555-0100"):
+            self.assertNotIn(secret, seen["group_contents"])
+
+    def test_survey_roster_and_group_files_are_written_outside_the_published_folder(self):
         seen, _, repo_dir = self.run_build()
-        for key in ("raw_path", "roster_path"):
+        for key in ("raw_path", "roster_path", "group_path"):
             self.assertFalse(os.path.realpath(seen[key]).startswith(os.path.realpath(repo_dir)))
 
-    def test_raw_survey_and_roster_are_deleted_after_the_build(self):
+    def test_survey_roster_and_group_files_are_deleted_after_the_build(self):
         seen, published, _ = self.run_build()
         self.assertFalse(os.path.exists(seen["raw_path"]))
         self.assertFalse(os.path.exists(seen["roster_path"]))
+        self.assertFalse(os.path.exists(seen["group_path"]))
         self.assertEqual(published, [])
 
 
@@ -130,6 +159,42 @@ class ExtractRosterPairsTest(unittest.TestCase):
     def test_missing_username_column_raises(self):
         with self.assertRaises(ValueError):
             build.extract_roster_pairs([["Email Address", "Other"], ["a", "b"]])
+
+
+class ExtractGroupUsernamesTest(unittest.TestCase):
+    def test_title_row_text_is_not_mistaken_for_the_header(self):
+        values = [[TITLE_TEXT, TITLE_TEXT], ["Event Username", "x"], ["s-1ab", "y"]]
+        self.assertEqual(build.extract_group_usernames(values), ["s-1ab"])
+
+    def test_finds_header_on_fourth_row_and_returns_usernames_in_order(self):
+        values = [
+            *SAMPLE_GROUP_VALUES,
+            ["", "Lead2", "Org", "l2@example.com", "555-0101", "Here", "1/3/2025", "s-apbp"],
+        ]
+        self.assertEqual(build.extract_group_usernames(values), ["CCAC1", "s-apbp"])
+
+    def test_skips_blanks_and_short_rows_and_trims(self):
+        values = [
+            ["Event Username"],
+            ["  CCAC1  "],
+            ["   "],
+            [""],
+            [],
+        ]
+        self.assertEqual(build.extract_group_usernames(values), ["CCAC1"])
+
+    def test_dedupes_case_insensitively_first_spelling_wins(self):
+        values = [["Event Username"], ["CCAC1"], ["ccac1"], ["s-1ab"], ["S-1AB"]]
+        self.assertEqual(build.extract_group_usernames(values), ["CCAC1", "s-1ab"])
+
+    def test_leader_contact_details_never_in_output(self):
+        flat = repr(build.extract_group_usernames(SAMPLE_GROUP_VALUES))
+        for secret in ("lead@example.com", "555-0100", "Lead", "Oakland"):
+            self.assertNotIn(secret, flat)
+
+    def test_missing_header_raises(self):
+        with self.assertRaises(ValueError):
+            build.extract_group_usernames([[TITLE_TEXT], ["a", "b"]])
 
 
 if __name__ == "__main__":
